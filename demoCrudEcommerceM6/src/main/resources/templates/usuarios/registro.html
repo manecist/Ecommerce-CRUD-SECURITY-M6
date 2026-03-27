@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{layout/header :: head}"></head>
+<body>
+<div th:replace="~{layout/header :: header}"></div>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-7">
+
+            <div th:if="${error != null}"
+                 class="alert alert-magica bg-white border-0 shadow-sm mb-4 text-danger">
+                <i class="bi bi-exclamation-triangle-fill me-2" style="color: #6907ab;"></i>
+                <span th:text="${error}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+
+            <div class="card shadow-lg card-magica-form border-0">
+                <div class="card-header text-center py-3">
+                    <h4 class="mb-0 fw-bold"
+                        th:text="${usuario != null and usuario.id != 0} ? '✨ Actualizar Esencia del Usuario' : '💎 Registrar Nueva Guardiana'">
+                    </h4>
+                </div>
+
+                <div class="card-body p-4 p-md-5 bg-white" style="border-radius: 0 0 30px 30px;">
+
+                    <form id="formUsuario" th:action="@{/usuarios}" method="post"
+                          class="needs-validation" novalidate>
+
+                        <input type="hidden" name="action"
+                               th:value="${usuario != null and usuario.id != 0} ? 'update' : 'insert'">
+                        <input type="hidden" name="id" id="idUsuarioInput"
+                               th:value="${usuario != null} ? ${usuario.id} : 0">
+
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label label-magico text-uppercase">Nombre Completo</label>
+                                <input type="text" name="nombreCompleto" class="form-control input-magico"
+                                       placeholder="Ej: Luna Amatista"
+                                       th:value="${usuario != null} ? ${usuario.nombreCompleto} : ''" required>
+                                <div class="invalid-feedback">Por favor, ingresa el nombre de la guardian(a).</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label label-magico text-uppercase">
+                                    Fecha de Nacimiento <span id="verEdad" class="small" style="color: #00d4aa;"></span>
+                                </label>
+                                <input type="date" name="fechaNacimiento" class="form-control input-magico"
+                                       th:value="${usuario != null} ? ${usuario.fechaNacimiento} : ''" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label label-magico text-uppercase">Teléfono Místico</label>
+                                <input type="tel" name="telefono" class="form-control input-magico"
+                                       placeholder="+569..."
+                                       th:value="${usuario != null} ? ${usuario.telefono} : ''" required>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label label-magico text-uppercase">Correo Electrónico</label>
+                                <input type="email" name="email" class="form-control input-magico"
+                                       placeholder="cristal@magia.com"
+                                       th:value="${usuario != null} ? ${usuario.email} : ''" required>
+                                <div class="invalid-feedback">Ingresa un correo místico válido.</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label label-magico text-uppercase">Nombre de Usuario</label>
+                                <input type="text" name="username" class="form-control input-magico"
+                                       placeholder="Nombre de guardian(a)"
+                                       th:value="${usuario != null} ? ${usuario.username} : ''" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label label-magico text-uppercase">Nombre de Usuario</label>
+                                <input type="text" name="username" class="form-control input-magico"
+                                       placeholder="Nombre de guardian(a)"
+                                       th:value="${usuario != null} ? ${usuario.username} : ''" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label label-magico text-uppercase">Rango / Rol</label>
+
+                                <div sec:authorize="hasRole('ADMIN')">
+                                    <select name="rol" class="form-select input-magico">
+                                        <option value="usuario" th:selected="${usuario != null and usuario.rol == 'usuario'}">Usuario</option>
+                                        <option value="admin" th:selected="${usuario != null and usuario.rol == 'admin'}">Administrador</option>
+                                    </select>
+                                </div>
+
+                                <div sec:authorize="!hasRole('ADMIN')">
+                                    <input type="text" class="form-control bg-light border-0" value="Usuario" readonly>
+                                    <input type="hidden" name="rol" value="usuario">
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label label-magico text-uppercase">Contraseña Sagrada</label>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4 pt-3">
+                            <button id="botonEnviar" type="button"
+                                    class="btn btn-guardar-magico py-2 fw-bold"
+                                    onclick="abrirModalConfirmacion()">
+                                <i class="bi bi-magic me-2"></i>
+                                <span th:text="${usuario != null and usuario.id != 0} ? 'Actualizar Perfil' : 'Manifestar Cuenta'"></span>
+                            </button>
+
+                            <a th:href="@{/home}" class="btn btn-link text-muted text-decoration-none text-center small">
+                                <i class="bi bi-arrow-left"></i> Volver a la Alianza
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 30px;">
+
+            <div class="modal-header border-0 bg-dark justify-content-center pt-4 pb-3">
+                <h4 class="modal-title fw-bold text-white text-center">
+                    ✨ Confirmar Acción Mística ✨
+                </h4>
+            </div>
+
+            <div class="modal-body text-center py-5">
+                <i class="bi bi-stars display-1" style="color: #00d4aa;"></i>
+                <p class="mt-4 mb-0 text-muted px-5 fs-5">
+                    <span th:text="${usuario != null and usuario.id != 0} ? '¿Estás segura de que deseas actualizar los datos de tu esencia?' : '¿Estás segura de que deseas unirte a nuestra Alianza Mística?'"></span>
+                </p>
+            </div>
+
+            <div class="modal-footer border-0 justify-content-center pb-5 gap-4">
+                <button type="button" class="btn btn-secondary rounded-pill px-5 py-2" data-bs-dismiss="modal">
+                    Volver a Revisar
+                </button>
+                <button type="button" class="btn btn-turquesa-magico px-5 py-2 fw-bold"
+                        onclick="document.getElementById('formUsuario').submit();">
+                    Sí, Proceder
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{layout/footer :: footer}"></div>
+
+
+</body>
+</html>
