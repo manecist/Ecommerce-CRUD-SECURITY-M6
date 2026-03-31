@@ -2,6 +2,8 @@ package com.magicalAliance.entity.usuario;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Entity
 @Table(name = "direcciones_cliente")
@@ -38,5 +40,6 @@ public class DireccionCliente {
     // se carga la informacion solo si lo necesita el cliente
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_rut", referencedColumnName = "rut")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Cliente cliente;
 }

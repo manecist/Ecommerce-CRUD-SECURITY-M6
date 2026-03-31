@@ -1,25 +1,32 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{layout/header :: head}"></head>
+<head th:replace="~{public/layout/header :: head}"></head>
 <body>
-<div th:replace="~{layout/header :: header}"></div>
+<div th:replace="~{public/layout/header :: header}"></div>
 
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-5 col-lg-4">
 
-            <div th:if="${param.logout}"
+            <div th:if="${param.logout != null or msg != null}"
                  class="alert alert-magica bg-white border-0 shadow-sm mb-3 text-center"
                  role="alert">
                 <i class="bi bi-magic me-2" style="color: #f480ff;"></i>
-                ✨ ¡Sesión cerrada! Vuelve pronto.
+                <span th:text="${msg != null ? msg : '✨ ¡Sesión cerrada! Vuelve pronto.'}"></span>
             </div>
 
-            <div th:if="${param.error}"
+            <div th:if="${exito != null}"
+                 class="alert alert-magica bg-white border-0 shadow-sm mb-3 text-center text-success"
+                 role="alert">
+                <i class="bi bi-check-circle-fill me-2" style="color: #00d4aa;"></i>
+                <span th:text="${exito}"></span>
+            </div>
+
+            <div th:if="${param.error != null and mensajeError == null}"
                  class="alert alert-danger bg-white border-0 shadow-sm mb-3 text-center small"
                  role="alert" style="color: #ff4da6; border-left: 4px solid #f480ff !important;">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                Usuario o contraseña incorrectos.
+                Email o contraseña incorrectos.
             </div>
 
             <div class="card card-login shadow-lg border-0">
@@ -33,11 +40,11 @@
                     <form th:action="@{/login}" method="post" class="needs-validation" novalidate>
 
                         <div class="form-floating mb-3">
-                            <input type="text" name="username" class="form-control input-magico"
-                                   id="user" placeholder="Usuario" required>
-                            <label for="user" class="label-magico">Nombre de Usuario</label>
+                            <input type="email" name="username" class="form-control input-magico"
+                                   id="user" placeholder="nombre@ejemplo.com" required>
+                            <label for="user" class="label-magico">Correo Electrónico</label>
                             <div class="invalid-feedback text-start">
-                                Ingresa tu nombre de guardian(a).
+                                Ingresa un email válido de guardian(a).
                             </div>
                         </div>
 
@@ -45,7 +52,6 @@
                             <div class="form-floating flex-grow-1">
                                 <input type="password" name="password" class="form-control input-magico"
                                        id="pass" placeholder="Contraseña" required
-                                       pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.]).{8,}$"
                                        style="border-top-right-radius: 0 !important; border-bottom-right-radius: 0 !important;">
                                 <label for="pass" class="label-magico">Contraseña</label>
                             </div>
@@ -54,7 +60,7 @@
                                 <i class="bi bi-eye label-magico" id="eyeIcon"></i>
                             </button>
                             <div class="invalid-feedback text-start">
-                                Mínimo 8 caracteres, una mayúscula, un número y un símbolo.
+                                La contraseña es obligatoria para entrar.
                             </div>
                         </div>
 
@@ -82,23 +88,63 @@
     </div>
 </div>
 
-<div class="modal fade modal-eliminar-magico" id="errorLoginModal"
-     th:data-trigger-error="${mensajeError != null ? 'true' : 'false'}"
+<div class="modal fade" id="errorLoginModal"
+     th:classappend="${mensajeError != null} ? 'show' : ''"
+     th:style="${mensajeError != null} ? 'display: block;' : 'display: none;'"
      tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0 shadow-lg">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
             <div class="modal-body text-center p-4">
                 <i class="bi bi-exclamation-octagon display-3" style="color: #f480ff;"></i>
                 <h5 class="fw-bold mt-3 titulo-magico">¡Hechizo Fallido!</h5>
                 <p class="text-muted small" th:text="${mensajeError}"></p>
-                <button type="button" class="btn btn-eliminar-magico btn-sm px-4"
-                        data-bs-dismiss="modal">Reintentar</button>
+                <button type="button" class="btn btn-magico-login btn-sm px-4"
+                        onclick="cerrarModalError()">Reintentar</button>
             </div>
         </div>
     </div>
 </div>
+<div th:if="${mensajeError != null}" class="modal-backdrop fade show"></div>
 
-<div th:replace="~{layout/footer :: footer}"></div>
+<div th:replace="~{public/layout/footer :: footer}"></div>
+
+<script th:inline="javascript">
+    // --- 1. Mostrar/Ocultar contraseña ---
+    document.getElementById('btnToggle').addEventListener('click', function () {
+        const passInput = document.getElementById('pass');
+        const eyeIcon = document.getElementById('eyeIcon');
+        if (passInput.type === 'password') {
+            passInput.type = 'text';
+            eyeIcon.classList.replace('bi-eye', 'bi-eye-slash');
+        } else {
+            passInput.type = 'password';
+            eyeIcon.classList.replace('bi-eye-slash', 'bi-eye');
+        }
+    });
+
+    // --- 2. Función para cerrar el modal manualmente ---
+    function cerrarModalError() {
+        const modal = document.getElementById('errorLoginModal');
+        modal.style.display = 'none';
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) backdrop.remove();
+    }
+
+    // --- 3. Validación de Bootstrap para el formulario ---
+    (function () {
+        'use strict'
+        var forms = document.querySelectorAll('.needs-validation')
+        Array.prototype.slice.call(forms).forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                form.classList.add('was-validated')
+            }, false)
+        })
+    })()
+</script>
 
 </body>
 </html>

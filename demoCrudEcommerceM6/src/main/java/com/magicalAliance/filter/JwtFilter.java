@@ -16,7 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-// once asegura que los filtro sse ejecuten una vex por cada click
+// once asegura que los filtro sse ejecuten una veZ por cada click
 @Component
 @RequiredArgsConstructor
 public class JwtFilter extends OncePerRequestFilter {
@@ -63,12 +63,9 @@ public class JwtFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
 
-        } catch (MagicalBusinessException ex) {
-            // AJUSTE: Si el token es inválido o expiró, no dejamos pasar y el Handler atrapará el error
-            SecurityContextHolder.clearContext();
-            throw ex;
         } catch (Exception e) {
-            // Error genérico de seguridad
+            // Token inválido, expirado o cualquier error: limpiamos el contexto
+            // y dejamos continuar la cadena sin autenticar (Spring Security manejará el acceso)
             SecurityContextHolder.clearContext();
         }
 
@@ -85,6 +82,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 path.startsWith("/css/") ||
                 path.startsWith("/js/") ||
                 path.startsWith("/img/") ||
+                path.startsWith("/productos/") || // <--- ESTRICTAMENTE NECESARIO PARA CARGAR IMÁGENES DE PRODUCTOS
                 path.startsWith("/login") ||
                 path.startsWith("/registro") ||
                 path.equals("/home") ||

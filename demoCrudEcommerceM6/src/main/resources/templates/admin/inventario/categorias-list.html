@@ -1,21 +1,15 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{layout/header :: head}"></head>
+<head th:replace="~{public/layout/header :: head}"></head>
 <body>
-<div th:replace="~{layout/header :: header}"></div>
+<div th:replace="~{public/layout/header :: header}"></div>
 
 <div class="container mt-5">
-    <div th:if="${param.msj != null or error != null}" class="mb-4">
-        <div th:if="${param.msj == 'save_ok'}"
+    <div th:if="${success != null or error != null}" class="mb-4">
+        <div th:if="${success != null}"
              class="alert alert-magica bg-white border-0 shadow-sm text-success">
             <i class="bi bi-check-circle-fill me-2" style="color: #00d4aa;"></i>
-            ¡Hechizo de guardado exitoso!
-        </div>
-
-        <div th:if="${param.msj == 'delete_ok'}"
-             class="alert alert-magica bg-white border-0 shadow-sm text-info">
-            <i class="bi bi-trash-fill me-2" style="color: #f480ff;"></i>
-            La categoría se ha desvanecido.
+            <span th:text="${success}"></span>
         </div>
 
         <div th:if="${error != null}"
@@ -30,22 +24,21 @@
             <div class="card card-magica-form shadow-lg">
                 <div class="card-header py-3">
                     <h5 class="mb-0 fw-bold text-center"
-                        th:text="${categoriaEnEdicion != null and categoriaEnEdicion.idCategoria != 0} ? '✨ Editar Esencia' : '💎 Nueva Categoría'">
+                        th:text="${categoriaEnEdicion.id != null and categoriaEnEdicion.id != 0} ? '✨ Editar Esencia' : '💎 Nueva Categoría'">
                     </h5>
                 </div>
                 <div class="card-body p-4">
-                    <form id="formCategoria" th:action="@{/gestion-categorias}" method="post" enctype="multipart/form-data">
+                    <form id="formCategoria" th:action="@{/admin/categorias/guardar}" th:object="${categoriaEnEdicion}" method="post" enctype="multipart/form-data">
 
-                        <input type="hidden" name="idCategoria"
-                               th:value="${categoriaEnEdicion != null} ? ${categoriaEnEdicion.idCategoria} : 0">
-                        <input type="hidden" name="imagenActual"
-                               th:value="${categoriaEnEdicion != null} ? ${categoriaEnEdicion.imagenBanner} : ''">
+                        <input type="hidden" th:if="${categoriaEnEdicion.id != null and categoriaEnEdicion.id != 0}" th:field="*{id}">
+
+                        <input type="hidden" name="imagenActual" th:value="*{imagenBanner}">
 
                         <div class="mb-3">
                             <label class="form-label label-magico text-uppercase">Nombre de la Categoría</label>
-                            <input type="text" name="nombreCategoria" class="form-control"
-                                   th:value="${categoriaEnEdicion != null} ? ${categoriaEnEdicion.nombreCategoria} : ''"
+                            <input type="text" th:field="*{nombre}" class="form-control"
                                    placeholder="Ej: Pociones Astrales" required>
+                            <div class="text-danger small" th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}"></div>
                         </div>
 
                         <div class="mb-3">
@@ -65,25 +58,23 @@
 
                             <div class="tab-content border p-3 bg-white" style="border-radius: 15px;">
                                 <div class="tab-pane fade show active" id="galeriaCat">
-                                    <select name="imagenExistente" class="form-select border-0 bg-light" onchange="cambiarImagen()">
-                                        <option th:value="${categoriaEnEdicion != null} ? ${categoriaEnEdicion.imagenBanner} : ''">
-                                            <span th:if="${categoriaEnEdicion == null or categoriaEnEdicion.idCategoria == 0}">-- Elige un Banner --</span>
-                                            <span th:unless="${categoriaEnEdicion == null or categoriaEnEdicion.idCategoria == 0}"
-                                                  th:text="'Actual: ' + ${categoriaEnEdicion.imagenBanner}"></span>
-                                        </option>
+                                    <select name="imagenExistente" class="form-select border-0 bg-light">
+                                        <option value="">-- Elige un Banner --</option>
                                         <option th:each="img : ${galeriaImagenes}" th:value="${img}" th:text="${img}"></option>
                                     </select>
                                 </div>
 
                                 <div class="tab-pane fade" id="subirCat">
-                                    <input type="file" name="imagenBanner" class="form-control border-0 bg-light" accept="image/*">
+                                    <input type="file" name="archivoImagen" class="form-control border-0 bg-light" accept="image/*">
                                 </div>
                             </div>
 
                             <div class="preview-container-magico shadow-sm mt-3">
                                 <small class="d-block mb-2 fw-bold text-center" style="color: #00d4aa;">VISTA PREVIA:</small>
                                 <img id="preview"
-                                     th:src="@{/assets/img/{img}(img=${categoriaEnEdicion != null and categoriaEnEdicion.imagenBanner != null and categoriaEnEdicion.imagenBanner != '' ? categoriaEnEdicion.imagenBanner : 'categorias/default-cat.jpg'})}"
+                                     th:src="${categoriaEnEdicion.imagenBanner != null and categoriaEnEdicion.imagenBanner != 'banner-simple.jpg' and categoriaEnEdicion.imagenBanner != ''} ?
+                                     ((${galeriaImagenes.contains(categoriaEnEdicion.imagenBanner)} or ${#strings.contains(categoriaEnEdicion.imagenBanner, '/')}) ? @{'/assets/img/' + ${categoriaEnEdicion.imagenBanner}} : @{'/uploads/categorias/' + ${categoriaEnEdicion.imagenBanner}}) :
+                                     @{/assets/img/banner-simple.jpg}"
                                      class="preview-img-magica d-block mx-auto"
                                      style="width: 100%; height: 100%; border-radius: 15px; object-fit: cover; border: 2px solid #afeeee;">
                             </div>
@@ -92,10 +83,10 @@
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-turquesa-magico py-2 fw-bold">
                                 <i class="bi bi-stars me-1"></i>
-                                <span th:text="${categoriaEnEdicion != null and categoriaEnEdicion.idCategoria != 0} ? 'Actualizar Esencia' : 'Manifestar Categoría'"></span>
+                                <span th:text="${categoriaEnEdicion.id != null and categoriaEnEdicion.id != 0} ? 'Actualizar Esencia' : 'Manifestar Categoría'"></span>
                             </button>
-                            <a th:if="${categoriaEnEdicion != null and categoriaEnEdicion.idCategoria != 0}"
-                               th:href="@{/gestion-categorias}"
+                            <a th:if="${categoriaEnEdicion.id != null and categoriaEnEdicion.id != 0}"
+                               th:href="@{/admin/categorias/gestion}"
                                class="btn btn-link text-muted text-decoration-none text-center small">Cancelar Edición</a>
                         </div>
                     </form>
@@ -117,23 +108,24 @@
                         </thead>
                         <tbody>
                         <tr th:each="c : ${categorias}">
-                            <td class="fw-bold" th:text="'#' + ${c.idCategoria}"></td>
+                            <td class="fw-bold" th:text="'#' + ${c.id}"></td>
                             <td>
-                                <img th:src="@{/assets/img/{img}(img=${c.imagenBanner})}"
+                                <img th:src="${c.imagenBanner != null and c.imagenBanner != 'banner-simple.jpg' and c.imagenBanner != ''} ?
+                                    ((${galeriaImagenes.contains(c.imagenBanner)} or ${#strings.contains(c.imagenBanner, '/')}) ? @{'/assets/img/' + ${c.imagenBanner}} : @{'/uploads/categorias/' + ${c.imagenBanner}}) :
+                                    @{/assets/img/banner-simple.jpg}"
                                      alt="banner" style="width: 80px; height: 45px; object-fit: cover;"
                                      class="rounded-3 border shadow-sm">
                             </td>
-                            <td class="fw-bold label-magico" style="font-size: 1.1rem;" th:text="${c.nombreCategoria}"></td>
+                            <td class="fw-bold label-magico" style="font-size: 1.1rem;" th:text="${c.nombre}"></td>
                             <td>
                                 <div class="btn-group gap-2">
-                                    <a th:href="@{/gestion-categorias(action='edit', idCategoria=${c.idCategoria})}"
-                                       class="btn btn-editar-magico btn-sm shadow-sm" style="border-radius: 10px !important;">
+                                    <a th:href="@{/admin/categorias/gestion(action='edit', id=${c.id})}"
+                                       class="btn btn-editar-magico btn-sm shadow-sm">
                                         <i class="bi bi-pencil-square"></i>
                                     </a>
 
                                     <button type="button" class="btn btn-eliminar-magico btn-sm shadow-sm"
-                                            style="border-radius: 10px !important;"
-                                            th:onclick="prepararBorradoCat([[${c.idCategoria}]], [[${c.nombreCategoria}]])"
+                                            th:onclick="prepararBorradoCat([[${c.id}]], [[${c.nombre}]])"
                                             data-bs-toggle="modal" data-bs-target="#deleteCatModal">
                                         <i class="bi bi-trash3"></i>
                                     </button>
@@ -157,32 +149,51 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-
             <div class="modal-body p-4 text-center">
-                <div class="mb-3">
-                    <i class="bi bi-trash3 fs-1" style="color: #ff6b6b;"></i>
-                </div>
                 <p class="mb-1 text-muted small text-uppercase fw-bold">Vas a eliminar la esencia de:</p>
                 <h5 id="nombreCatBorrar" class="fw-bold mb-3" style="color: #6907ab;"></h5>
-
                 <div class="alert-magica-warning py-3 px-3 mb-0 small text-start">
                     <i class="bi bi-info-circle-fill me-2"></i>
-                    Asegúrate de que no existan productos vinculados a esta categoría antes de proceder con el hechizo de desvanecimiento.
+                    Asegúrate de que no existan subcategorías o productos vinculados.
                 </div>
             </div>
-
             <div class="modal-footer border-0 d-flex justify-content-center pb-4">
                 <button type="button" class="btn btn-revisar-modal" data-bs-dismiss="modal">Conservar</button>
-                <a id="btnConfirmarBorradoCat" href="#" class="btn btn-desvanecer-confirmar">
-                    Sí, Eliminar <i class="bi bi-wind ms-1"></i>
-                </a>
+                <form id="formEliminarCat" method="post" action="#">
+                    <button type="submit" class="btn btn-desvanecer-confirmar">
+                        Sí, Eliminar <i class="bi bi-wind ms-1"></i>
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
-<div th:replace="~{layout/footer :: footer}"></div>
+<div th:replace="~{public/layout/footer :: footer}"></div>
 
+<script>
+    function prepararBorradoCat(id, nombre) {
+        document.getElementById('nombreCatBorrar').innerText = nombre;
+        document.getElementById('formEliminarCat').action = '/admin/categorias/eliminar/' + id;
+    }
 
+    document.getElementsByName('imagenExistente')[0].addEventListener('change', function() {
+        const preview = document.getElementById('preview');
+        if(this.value) {
+            preview.src = '/assets/img/' + this.value;
+        }
+    });
+
+    document.getElementsByName('archivoImagen')[0].addEventListener('change', function(event) {
+        const preview = document.getElementById('preview');
+        const reader = new FileReader();
+        reader.onload = function(){
+            preview.src = reader.result;
+        };
+        if(event.target.files[0]) {
+            reader.readAsDataURL(event.target.files[0]);
+        }
+    });
+</script>
 </body>
 </html>

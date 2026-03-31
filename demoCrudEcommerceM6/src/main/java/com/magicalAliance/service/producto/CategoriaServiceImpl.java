@@ -33,34 +33,35 @@ public class CategoriaServiceImpl implements ICategoriaService {
     @Override
     @Transactional
     public void guardar(Categoria cat) {
-        // 1. VALIDACIÓN: Nombre obligatorio
         if (cat.getNombre() == null || cat.getNombre().isBlank()) {
-            throw new MagicalBusinessException("El nombre de la categoría es un elemento obligatorio del reino.");
+            throw new MagicalBusinessException("El nombre de la categoría es obligatorio.");
         }
 
         String nombreTrim = cat.getNombre().trim();
         cat.setNombre(nombreTrim);
 
-        // 2. LÓGICA PARA CREAR (Si el ID es nulo)
-        if (cat.getId() == null) {
+        if (cat.getId() == null || cat.getId() == 0) { // Agregamos chequeo de ID 0 por si Thymeleaf envía 0
             if (categoriaRepo.existsByNombre(nombreTrim)) {
-                throw new MagicalBusinessException("Ya existe una categoría invocada con el nombre: " + nombreTrim);
+                throw new MagicalBusinessException("Ya existe una categoría con el nombre: " + nombreTrim);
             }
-        }
-        // 3. LÓGICA PARA ACTUALIZAR (Si el ID ya existe)
-        else {
+        } else {
+            // Buscamos la que ya está en la DB
             Categoria existente = categoriaRepo.findById(cat.getId())
-                    .orElseThrow(() -> new MagicalNotFoundException("Error: La categoría con ID " + cat.getId() + " no ha sido hallada."));
+                    .orElseThrow(() -> new MagicalNotFoundException("La categoría con ID " + cat.getId() + " no existe."));
 
-            // Si el nombre cambió, verificamos que el nuevo no esté duplicado
+            // Validación de duplicados al cambiar nombre
             if (!existente.getNombre().equalsIgnoreCase(nombreTrim)) {
                 if (categoriaRepo.existsByNombre(nombreTrim)) {
-                    throw new MagicalBusinessException("Ese nombre ya está en uso por otra categoría de la alianza.");
+                    throw new MagicalBusinessException("Ese nombre ya está en uso.");
                 }
+            }
+
+            // IMPORTANTE: Asegúrate de que el objeto 'cat' mantenga la imagen si no se cambió
+            if (cat.getImagenBanner() == null || cat.getImagenBanner().isEmpty()) {
+                cat.setImagenBanner(existente.getImagenBanner());
             }
         }
 
-        // 4. GUARDADO FINAL: JPA decide si hace INSERT o UPDATE
         categoriaRepo.save(cat);
     }
 

@@ -17,27 +17,25 @@ public class MvcConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         try {
-            // 1. MANTENER LO DE STATIC (Accesorios, Cosméticos, Vestuario, CSS, JS)
-            // Spring ya lo hace por defecto, pero esto asegura que no se pierda
+            // 1. RECURSOS ESTÁTICOS DEL PROYECTO (CSS, JS interno)
             registry.addResourceHandler("/assets/**")
                     .addResourceLocations("classpath:/static/assets/");
 
-            // 2. AGREGAR LO DEL DISCO C (Categorías y Productos del Admin)
-            // Usamos "file:" para decirle que salga del proyecto y vaya al disco duro
-            // Convertimos la ruta del disco en una URI válida (file:/C:/...)
             String rootPath = Paths.get(uploadPath).toAbsolutePath().toUri().toString();
+            if (!rootPath.endsWith("/")) {
+                rootPath += "/";
+            }
 
-            // Mapeamos la URL /categorias/** a la carpeta física de categorías
-            registry.addResourceHandler("/categorias/**")
+            // 2. CAMBIO CLAVE: Usamos un prefijo único para archivos externos
+            // Esto evita que choque con tu @GetMapping("/categorias") del controlador
+            registry.addResourceHandler("/uploads/categorias/**")
                     .addResourceLocations(rootPath + "categorias/");
 
-            // Mapeamos la URL /productos/** a la carpeta física de productos
-            registry.addResourceHandler("/productos/**")
+            registry.addResourceHandler("/uploads/productos/**")
                     .addResourceLocations(rootPath + "productos/");
 
         } catch (Exception e) {
-            // AJUSTE: Si hay un error configurando las rutas del servidor
-            throw new MagicalBusinessException("Error crítico: No se pudo establecer el puente con el almacenamiento de imágenes.");
+            throw new MagicalBusinessException("Error al conectar los puentes de imágenes: " + e.getMessage());
         }
     }
 }

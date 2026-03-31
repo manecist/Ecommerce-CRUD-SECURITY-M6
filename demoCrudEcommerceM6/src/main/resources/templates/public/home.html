@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{layout/header :: head}"></head>
+<head th:replace="~{public/layout/header :: head}"></head>
 <body>
-<div th:replace="~{layout/header :: header}"></div>
+<div th:replace="~{public/layout/header :: header}"></div>
 
 <main>
     <div class="container mt-4 d-flex justify-content-center">
@@ -10,8 +10,8 @@
             <a th:each="cat, status : ${listaCategorias}"
                class="btn-subcategoria"
                th:id="'boton' + ${status.count}"
-               th:href="@{/productos(action='list', idCategoria=${cat.idCategoria})}"
-               th:text="${cat.nombreCategoria}">
+               th:href="@{/productos(action='list', idCategoria=${cat.id})}"
+               th:text="${cat.nombre}">
             </a>
         </div>
     </div>
@@ -46,11 +46,11 @@
                  class="carousel-item"
                  th:classappend="${status.first} ? 'active' : ''"
                  data-bs-interval="4000">
-                <a th:href="@{/productos(action='list', idCategoria=${cat.idCategoria})}">
-                    <img th:src="@{'/assets/img/' + ${cat.imagenBanner}}"
-                         class="d-block w-100 mx" th:alt="${cat.nombreCategoria}">
+                <a th:href="@{/productos(action='list', idCategoria=${cat.id})}">
+                    <img th:src="${cat.imagenBanner != null ? '/assets/img/' + cat.imagenBanner : '/assets/img/logottttt.png'}"
+                         class="d-block w-100 mx" th:alt="${cat.nombre}">
                     <div class="carousel-caption d-none d-md-block">
-                        <h3 class="fw-bold text-uppercase" th:text="${cat.nombreCategoria}"></h3>
+                        <h3 class="fw-bold text-uppercase" th:text="${cat.nombre}"></h3>
                         <p>Haz clic para explorar esta colección mágica</p>
                     </div>
                 </a>
@@ -73,13 +73,13 @@
         <div class="row row-cols-1 row-cols-md-3 g-4">
             <div class="col" th:each="prod, iter : ${listaProductos}" th:if="${iter.index < 3}">
                 <div class="card h-100 shadow-sm border-magico card-magica">
-                    <img th:src="@{'/assets/img/' + ${prod.imagenProducto}}"
-                         class="card-img-top" th:alt="${prod.nombreProducto}"
+                    <img th:src="${prod.imagen != null ? '/assets/img/' + prod.imagen : '/assets/img/logottttt.png'}"
+                         class="card-img-top" th:alt="${prod.nombre}"
                          style="height: 200px; object-fit: cover; border-bottom: 2px solid #f8f0ff;">
                     <div class="card-body text-center">
-                        <h5 class="card-title fw-bold" th:text="${prod.nombreProducto}"></h5>
+                        <h5 class="card-title fw-bold" th:text="${prod.nombre}"></h5>
                         <p class="card-text fw-bold" style="color: #f480ff;">
-                            $ <span th:text="${#numbers.formatDecimal(prod.precioProducto, 0, 'POINT', 0, 'POINT')}"></span>
+                            $ <span th:text="${prod.precio != null ? #numbers.formatDecimal(prod.precio, 0, 'POINT', 0, 'POINT') : '0'}"></span>
                         </p>
                         <a th:href="@{/productos(action='list')}" class="btn btn-magico-sm px-4">Ver Detalles</a>
                     </div>
@@ -158,7 +158,7 @@
                         </li>
                     </ul>
                     <ul class="pt-3 pb-3">
-                        <strong class="fst-italic">✍️ El Poder de la Sombra: Tu Paleta de Hechizos</strong>
+                        <strong class="fst-italic">✍️ El Poder del Delineado: Trazos de Precisión</strong>
                         <li>
                             <strong>Pulso Firme:</strong> ¡Encuentra tu centro! Apoya tu codo para
                                                           estabilizar tu mano. Un pulso firme es la clave para un trazo tan
@@ -300,12 +300,13 @@
         </div>
 
         <div class="card shadow" id="selloEmpresa">
-            <div class="card-body container-fluid d-flex row row-cols-5 flex-sm-row flex-column mx-auto">
-                <article class="col-12 col-sm-6 col-md-4 col-lg-2">
+            <div class="card-body container-fluid d-flex row row-cols-1 row-cols-sm-2 row-cols-lg-5 g-4 mx-auto align-items-start">
+
+                <article class="col text-center">
                     <div class="flex-shrink-0">
-                        <img th:src="@{/assets/img/curt.png}" class="img-fluid mx-auto d-block empresaimg">
+                        <img th:src="@{/assets/img/curt.png}" class="img-fluid mx-auto d-block" style="height: 100px; width: 100px; object-fit: contain;">
                     </div>
-                    <div class="ms-lg-2 text-wrap text-lg-center">
+                    <div class="mt-2">
                         <h6 class="fw-bold">Cruelty-Free</h6>
                         <p>
                             Ningún ser vivo se ve afectado en las pruebas de nuestros productos.
@@ -314,11 +315,11 @@
                     </div>
                 </article>
 
-                <article class="col-12 col-sm-6 col-md-3 col-lg-2">
+                <article class="col text-center">
                     <div class="flex-shrink-0">
-                        <img th:src="@{/assets/img/veg.png}" class="img-fluid mx-auto d-block empresaimg">
+                        <img th:src="@{/assets/img/veg.png}" class="img-fluid mx-auto d-block" style="height: 100px; width: 100px; object-fit: contain;">
                     </div>
-                    <div class="ms-lg-2 text-wrap text-lg-center">
+                    <div class="mt-2">
                         <h6 class="fw-bold">Veganos</h6>
                         <p>
                             El 90% o más de la composición de nuestros productos es de origen vegetal.
@@ -328,11 +329,11 @@
                     </div>
                 </article>
 
-                <article class="col-12 col-sm-6 col-md-4 col-lg-4">
+                <article class="col text-center">
                     <div class="flex-shrink-0">
-                        <img th:src="@{/assets/img/purg.png}" class="img-fluid mx-auto d-block empresaimg">
+                        <img th:src="@{/assets/img/purg.png}" class="img-fluid mx-auto d-block" style="height: 100px; width: 100px; object-fit: contain;">
                     </div>
-                    <div class="ms-lg-2 text-wrap text-lg-center">
+                    <div class="mt-2">
                         <h6 class="fw-bold">PureGlam</h6>
                         <p>
                             Elevamos la belleza con productos seguros, probados y transparentes.
@@ -345,11 +346,11 @@
                     </div>
                 </article>
 
-                <article class="col-12 col-sm-6 col-md-4 col-lg-2">
+                <article class="col text-center">
                     <div class="flex-shrink-0">
-                        <img th:src="@{/assets/img/susten.png}" class="img-fluid mx-auto d-block empresaimg">
+                        <img th:src="@{/assets/img/susten.png}" class="img-fluid mx-auto d-block" style="height: 100px; width: 100px; object-fit: contain;">
                     </div>
-                    <div class="ms-lg-2 text-wrap text-lg-center">
+                    <div class="mt-2">
                         <h6 class="fw-bold">Sustainable Packaging</h6>
                         <p>
                             Nuestras cajas cuentan con certificación FSC, asegurando que los materiales
@@ -358,11 +359,11 @@
                     </div>
                 </article>
 
-                <article class="col-12 col-sm-6 col-md-4 col-lg-2 mx-auto">
+                <article class="col text-center">
                     <div class="flex-shrink-0">
-                        <img th:src="@{/assets/img/work.png}" class="img-fluid mx-auto d-block empresaimg">
+                        <img th:src="@{/assets/img/work.png}" class="img-fluid mx-auto d-block" style="height: 100px; width: 100px; object-fit: contain;">
                     </div>
-                    <div class="ms-lg-2 text-wrap text-lg-center">
+                    <div class="mt-2">
                         <h6 class="fw-bold">Ética Laboral</h6>
                         <p>
                             Nuestras instalaciones de fabricación poseen certificaciones internacionales
@@ -388,6 +389,6 @@
     </section>
 </main>
 
-<div th:replace="~{layout/footer :: footer}"></div>
+<div th:replace="~{public/layout/footer :: footer}"></div>
 </body>
 </html>

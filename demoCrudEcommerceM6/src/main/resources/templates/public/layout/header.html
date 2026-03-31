@@ -14,9 +14,9 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm navbar-mistica">
         <div class="container-fluid px-lg-5">
 
-            <a class="navbar-brand d-flex align-items-center" th:href="@{/home}">
+            <a class="navbar-brand d-flex align-items-center" th:href="@{/home}" id="titulo">
                 <img th:src="@{/assets/img/carla-rodriguez-sailor-moon-eternal-moon.512.png}" width="50" height="50" class="me-2 logo-header">
-                <span class="fw-bolder" id="titulo">Magical Alliance</span>
+                <span class="fw-bolder">Magical Alliance</span>
             </a>
 
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -55,10 +55,10 @@
                     <div sec:authorize="isAuthenticated()" class="nav-item dropdown">
                         <a class="btn btn-perfil-magic dropdown-toggle d-flex align-items-center" href="#" data-bs-toggle="dropdown">
                             <i class="bi bi-person-circle me-2 fs-5"></i>
-                            <span sec:authentication="name">Username</span>
+
+                            <span th:text="${nombreUsuario != null ? 'Hola, ' + nombreUsuario : 'Hola, Usuario'}"></span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark dropdown-magic">
-                            <li><h6 class="dropdown-header text-turquesa">Rol: <span sec:authentication="principal.authorities"></span></h6></li>
                             <li><a class="dropdown-item" th:href="@{/usuarios/perfil}">
                                 <i class="bi bi-gear me-2"></i>Mi Perfil</a>
                             </li>
@@ -94,9 +94,9 @@
                 <span class="admin-badge-text"><i class="bi bi-shield-check me-1"></i> GESTION MÁGICA </span>
                 <nav class="admin-nav-links-dark">
                     <a th:href="@{/usuarios/admin/gestion}"><i class="bi bi-people"></i> Usuarios</a>
-                    <a th:href="@{/productos/gestion}"><i class="bi bi-bag-heart"></i> Productos</a>
-                    <a th:href="@{/gestion-categorias}"><i class="bi bi-folder2-open"></i> Categorías</a>
-                    <a th:href="@{/gestion-subcategorias}"><i class="bi bi-tags"></i> Subcategorías</a>
+                    <a th:href="@{/productos}"><i class="bi bi-bag-heart"></i> Productos</a>
+                    <a th:href="@{/admin/categorias/gestion}"><i class="bi bi-folder2-open"></i> Categorías</a>
+                    <a th:href="@{/admin/subcategorias}"><i class="bi bi-tags"></i> Subcategorías</a>
                 </nav>
             </div>
         </div>

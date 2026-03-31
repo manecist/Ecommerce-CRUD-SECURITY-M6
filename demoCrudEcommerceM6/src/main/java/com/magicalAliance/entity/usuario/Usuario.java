@@ -3,6 +3,8 @@ package com.magicalAliance.entity.usuario;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDate;
 
@@ -27,6 +29,8 @@ public class Usuario {
     @Column(nullable = false)
     private String password;
 
+    @Builder.Default
+    @Column(name = "fecha_registro")
     private LocalDate fechaRegistro = LocalDate.now();
 
     //relacion muchos a uno y que cargue todo altiro
@@ -37,7 +41,7 @@ public class Usuario {
 
     // relacion con el cliente uno a uno y se elimine el registro cliente y usuario
     @OneToOne(cascade = CascadeType.ALL)
-    // fk
     @JoinColumn(name = "cliente_rut", referencedColumnName = "rut")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Cliente cliente;
 }
