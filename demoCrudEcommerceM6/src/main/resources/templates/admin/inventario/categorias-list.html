@@ -171,29 +171,5 @@
 
 <div th:replace="~{public/layout/footer :: footer}"></div>
 
-<script>
-    function prepararBorradoCat(id, nombre) {
-        document.getElementById('nombreCatBorrar').innerText = nombre;
-        document.getElementById('formEliminarCat').action = '/admin/categorias/eliminar/' + id;
-    }
-
-    document.getElementsByName('imagenExistente')[0].addEventListener('change', function() {
-        const preview = document.getElementById('preview');
-        if(this.value) {
-            preview.src = '/assets/img/' + this.value;
-        }
-    });
-
-    document.getElementsByName('archivoImagen')[0].addEventListener('change', function(event) {
-        const preview = document.getElementById('preview');
-        const reader = new FileReader();
-        reader.onload = function(){
-            preview.src = reader.result;
-        };
-        if(event.target.files[0]) {
-            reader.readAsDataURL(event.target.files[0]);
-        }
-    });
-</script>
 </body>
 </html>

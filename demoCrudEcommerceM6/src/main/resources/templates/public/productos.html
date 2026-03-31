@@ -196,18 +196,6 @@
 
 <div th:replace="~{public/layout/footer :: footer}"></div>
 
-<script th:inline="javascript">
-    function confirmarEliminar(id, nombre) {
-        document.getElementById('nombreProdEliminar').innerText = nombre;
-        document.getElementById('formEliminarProd').action = '/productos/admin/eliminar/' + id;
-        const modal = new bootstrap.Modal(document.getElementById('modalEliminar'));
-        modal.show();
-    }
-
-    function agregarAlCarrito(nombre) {
-        alert(nombre + " ha sido atraído por tu energía (añadido al carrito).");
-    }
-</script>
 
 </body>
 </html>

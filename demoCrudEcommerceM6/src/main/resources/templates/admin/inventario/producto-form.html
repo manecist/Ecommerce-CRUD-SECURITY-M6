@@ -149,40 +149,6 @@
 
 <div th:replace="~{public/layout/footer :: footer}"></div>
 
-<script th:inline="javascript">
-    const modalConfirm = new bootstrap.Modal(document.getElementById('modalConfirmarProducto'));
-
-    function validarYConfirmar() {
-        const form = document.getElementById('formProducto');
-        if (form.checkValidity()) {
-            modalConfirm.show();
-        } else {
-            form.classList.add('was-validated');
-        }
-    }
-
-    function enviarFormulario() {
-        document.getElementById('formProducto').submit();
-    }
-
-    // Previsualización Galería
-    document.getElementById('selectGaleria').addEventListener('change', function() {
-        if(this.value) {
-            document.getElementById('preview').src = '/assets/img/' + this.value;
-        }
-    });
-
-    // Previsualización Archivo Nuevo
-    document.getElementById('inputArchivo').addEventListener('change', function(event) {
-        const reader = new FileReader();
-        reader.onload = function(){
-            document.getElementById('preview').src = reader.result;
-        };
-        if(event.target.files[0]) {
-            reader.readAsDataURL(event.target.files[0]);
-        }
-    });
-</script>
 
 </body>
 </html>
