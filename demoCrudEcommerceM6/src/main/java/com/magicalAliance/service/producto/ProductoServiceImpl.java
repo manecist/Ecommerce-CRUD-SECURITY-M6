@@ -4,6 +4,7 @@ import com.magicalAliance.entity.producto.Producto;
 import com.magicalAliance.exception.MagicalBusinessException;
 import com.magicalAliance.exception.MagicalNotFoundException;
 import com.magicalAliance.repository.producto.ProductoRepository;
+import com.magicalAliance.service.img.IUploadFileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,9 @@ public class ProductoServiceImpl implements IProductoService {
 
     @Autowired
     private ProductoRepository productoRepo;
+
+    @Autowired
+    private IUploadFileService uploadService;
 
     @Override // Ahora sí coincidirá con la Interfaz
     @Transactional(readOnly = true)
@@ -71,16 +75,19 @@ public class ProductoServiceImpl implements IProductoService {
     @Override
     @Transactional
     public void eliminar(Long id) {
-        // AJUSTE: Verificamos si existe antes de intentar borrar
-        if (!productoRepo.existsById(id)) {
-            throw new MagicalNotFoundException("No se puede eliminar: el producto con ID " + id + " no existe en el catálogo.");
+        Producto producto = productoRepo.findById(id)
+                .orElseThrow(() -> new MagicalNotFoundException("No se puede eliminar: el producto con ID " + id + " no existe en el catálogo."));
+
+        // Eliminar imagen física del disco antes de borrar el registro
+        String imagen = producto.getImagen();
+        if (imagen != null && !imagen.equals("default.jpg") && !imagen.contains("/")) {
+            uploadService.eliminar(imagen, "productos");
         }
 
         try {
             productoRepo.deleteById(id);
         } catch (Exception e) {
-            // Por si tiene pedidos asociados en el futuro (Integridad Referencial)
-            throw new MagicalBusinessException("No se puede eliminar el producto porque tiene registros asociados (ventas o stock).");
+            throw new MagicalBusinessException("No se puede eliminar el producto porque tiene registros asociados.");
         }
     }
 

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -17,19 +18,20 @@ public class Subcategoria {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "idSubcategoria")
+    @Column(name = "id_subcategoria")
     private Long id;
 
     @NotBlank(message = "El nombre de la subcategoría es obligatorio")
-    @Column(name = "nombreSubcategoria", nullable = false, length = 100)
+    @Column(name = "nombre_subcategoria", nullable = false, length = 100)
     private String nombre;
 
     // Relación con Categoría
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "idCategoriaAsociada", nullable = false)
+    @JoinColumn(name = "id_categoria", nullable = false)
     private Categoria categoria;
 
     // Una subcategoría tiene muchos productos
-    @OneToMany(mappedBy = "subcategoria", cascade = CascadeType.ALL)
-    private List<Producto> productos;
+    @Builder.Default
+    @OneToMany(mappedBy = "subcategoria", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Producto> productos = new ArrayList<>();
 }

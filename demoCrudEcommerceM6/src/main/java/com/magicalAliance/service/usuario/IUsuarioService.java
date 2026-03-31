@@ -1,6 +1,7 @@
 package com.magicalAliance.service.usuario;
 
 
+import com.magicalAliance.dto.usuario.RegistroDTO;
 import com.magicalAliance.entity.usuario.Cliente;
 import com.magicalAliance.entity.usuario.DireccionCliente;
 import com.magicalAliance.entity.usuario.Usuario;
@@ -22,18 +23,19 @@ public interface IUsuarioService {
     Usuario crearUsuarioDesdeAdmin(Usuario u, Long idRol);
 
     // --- ACTUALIZAR ---
+    Usuario actualizarUsuarioDesdeAdmin(RegistroDTO dto, Long idRol);
     void actualizarCredenciales(Long id, String email, String password);
-    Usuario actualizarDatosPersonales(Long id, Cliente datosNuevos);
+    Usuario actualizarDatosPersonales(Long id, Cliente datosNuevos, boolean isAdmin);
     void cambiarRol(Long idUsuario, Long idNuevoRol);
-    public Cliente actualizarOCrearClienteInvitado(Cliente datosEntrantes);
+    Cliente actualizarOCrearClienteInvitado(Cliente datosEntrantes);
+
 
     // --- ELIMINAR ---
     void eliminarUsuario(Long id);
 
     // --- DIRECCIONES ---
     void agregarDireccion(Long usuarioId, DireccionCliente direccion);
+    void establecerDireccionPrincipal(Long usuarioId, Long direccionId);
     void editarDireccion(Long direccionId, DireccionCliente datosNuevos);
     void eliminarDireccion(Long usuarioId, Long direccionId);
-
-
 }

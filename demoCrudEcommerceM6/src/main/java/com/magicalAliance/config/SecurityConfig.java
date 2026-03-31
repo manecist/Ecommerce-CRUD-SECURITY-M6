@@ -38,20 +38,29 @@ public class SecurityConfig {
 
                         // --- ACCESO PÚBLICO (HOME Y PRODUCTOS) ---
                         .requestMatchers("/", "/home", "/test").permitAll()
-                        .requestMatchers("/productos", "/productos/ver/**").permitAll()
                         .requestMatchers("/login", "/registro").permitAll()
+                        .requestMatchers("/acceso-denegado").permitAll()
+                        .requestMatchers("/contacto", "/contacto/**").permitAll()
+                        .requestMatchers("/subscribir").permitAll()
 
-                        // --- TUS FILTROS DE ADMIN (RESTAURADOS) ---
+                        // --- ADMIN PRIMERO (más específico va antes del permitAll genérico) ---
                         .requestMatchers("/usuarios/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/productos/admin/**").hasRole("ADMIN")
                         .requestMatchers("/productos/gestionar/**").hasRole("ADMIN")
-                        .requestMatchers("/categorias/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/categorias/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/subcategorias/**").hasRole("ADMIN")
+
+                        // --- ACCESO PÚBLICO A CATÁLOGO E IMÁGENES SUBIDAS ---
+                        // Estas reglas van después de las de admin para que no las bloqueen
+                        .requestMatchers("/productos/**").permitAll()
+                        .requestMatchers("/categorias/**").permitAll()
 
                         // --- TUS FILTROS DE CLIENTE/PERFIL (RESTAURADOS) ---
-                        .requestMatchers("/usuarios/perfil/**").hasAnyRole("CLIENTE", "ADMIN")
-                        .requestMatchers("/usuarios/editar-acceso/**").hasAnyRole("CLIENTE", "ADMIN")
-                        .requestMatchers("/usuarios/editar-datos/**").hasAnyRole("CLIENTE", "ADMIN")
-                        .requestMatchers("/usuarios/direcciones/**").hasAnyRole("CLIENTE", "ADMIN")
-                        .requestMatchers("/usuarios/eliminar/**").hasAnyRole("CLIENTE", "ADMIN")
+                        .requestMatchers("/usuarios/perfil/**").hasAnyRole("CLIENT", "ADMIN")
+                        .requestMatchers("/usuarios/editar-acceso/**").hasAnyRole("CLIENT", "ADMIN")
+                        .requestMatchers("/usuarios/editar-datos/**").hasAnyRole("CLIENT", "ADMIN")
+                        .requestMatchers("/usuarios/direcciones/**").hasAnyRole("CLIENT", "ADMIN")
+                        .requestMatchers("/usuarios/eliminar/**").hasAnyRole("CLIENT", "ADMIN")
 
                         .anyRequest().authenticated()
                 )
@@ -74,7 +83,7 @@ public class SecurityConfig {
                         .permitAll()
                 )
                 .exceptionHandling(ex -> ex
-                        .accessDeniedPage("/home?error=no-autorizado")
+                        .accessDeniedPage("/acceso-denegado")
                 );
 
         return http.build();

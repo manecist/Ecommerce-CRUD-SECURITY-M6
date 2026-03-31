@@ -9,6 +9,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -41,17 +42,18 @@ public class Cliente {
 
     @Column(name = "fecha_nacimiento")
     @NotNull(message = "La fecha de nacimiento es obligatoria")
-    @DateTimeFormat(pattern = "dd-MM-yyyy")
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
     private LocalDate fechaNacimiento;
 
     // Relación con Direcciones (Un cliente puede tener varias)
     // Usamos CascadeType.ALL porque si borras al cliente, se borran sus direcciones
     // y si tiene mas direcciones y borra una se puede eliminar de BD por orpahnremoval
+    @Builder.Default
     @OneToMany(mappedBy = "cliente",
             fetch = FetchType.EAGER,
             cascade = CascadeType.ALL,
             orphanRemoval = true)
-    private List<DireccionCliente> direcciones;
+    private List<DireccionCliente> direcciones = new ArrayList<>();
 
     public int getEdad() {
         if (this.fechaNacimiento == null) {

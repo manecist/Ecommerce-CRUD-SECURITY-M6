@@ -2,76 +2,90 @@ CREATE DATABASE crud_ecommerce_m6;
 
 USE crud_ecommerce_m6;
 
--- Roles (Necesaria para los Usuarios)
+-- ROLES
 CREATE TABLE roles (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    nombre VARCHAR(50) NOT NULL UNIQUE
+    nombre VARCHAR(255)
 );
 
--- Clientes (Ordenada según tu preferencia)
+-- CLIENTES
 CREATE TABLE clientes (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    rut VARCHAR(255) NOT NULL UNIQUE, 
     nombre VARCHAR(255) NOT NULL,
     apellido VARCHAR(255) NOT NULL,
-    rut VARCHAR(20) NOT NULL UNIQUE, -- Usada como referencia para FKs
-    fecha_nacimiento DATE NOT NULL,
-    telefono VARCHAR(20),
-    email VARCHAR(255)               
+    email VARCHAR(255),
+    telefono VARCHAR(255),
+    fecha_nacimiento DATE NOT NULL
 );
 
--- Usuarios (Conectada al Cliente por RUT)
+-- USUARIOS (Relación con Cliente por RUT)
 CREATE TABLE usuarios (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    fecha_registro DATE DEFAULT (CURRENT_DATE),
+    fecha_registro DATE,
     rol_id BIGINT,
-    cliente_rut VARCHAR(20),
+    cliente_rut VARCHAR(255),
     CONSTRAINT fk_usuario_rol FOREIGN KEY (rol_id) REFERENCES roles(id),
-    CONSTRAINT fk_usuario_cliente FOREIGN KEY (cliente_rut) REFERENCES clientes(rut) ON DELETE CASCADE
+    CONSTRAINT fk_usuario_cliente FOREIGN KEY (cliente_rut) REFERENCES clientes(rut) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- Direcciones (Conectada al Cliente por RUT)
+-- DIRECCIONES CLIENTE
 CREATE TABLE direcciones_cliente (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     direccion VARCHAR(255) NOT NULL,
-    ciudad VARCHAR(100) NOT NULL,
-    estado_region VARCHAR(100),
-    pais VARCHAR(100) NOT NULL,
-    codigo_postal VARCHAR(20),
+    ciudad VARCHAR(255) NOT NULL,
+    estado_region VARCHAR(255),
+    pais VARCHAR(255) NOT NULL,
+    codigo_postal VARCHAR(255),
     es_principal BOOLEAN DEFAULT FALSE,
-    cliente_rut VARCHAR(20),
-    CONSTRAINT fk_direccion_cliente FOREIGN KEY (cliente_rut) REFERENCES clientes(rut) ON DELETE CASCADE
+    cliente_rut VARCHAR(255),
+    CONSTRAINT fk_direccion_cliente FOREIGN KEY (cliente_rut) REFERENCES clientes(rut) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- Categorías 
+-- CATEGORIAS
 CREATE TABLE categorias (
-    idCategoria INT AUTO_INCREMENT PRIMARY KEY,
-    nombreCategoria VARCHAR(100) NOT NULL,
-    imagenBanner VARCHAR(255) DEFAULT 'default-banner.jpg'
+    id_categoria BIGINT AUTO_INCREMENT PRIMARY KEY,
+    nombre_categoria VARCHAR(100) NOT NULL,
+    imagen_banner VARCHAR(255) DEFAULT 'banner-simple.jpg'
 );
 
--- Subcategorías 
+-- SUBCATEGORIAS
 CREATE TABLE subcategorias (
-    idSubcategoria INT AUTO_INCREMENT PRIMARY KEY,
-    idCategoriaAsociada INT NOT NULL,
-    nombreSubcategoria VARCHAR(100) NOT NULL,
-    CONSTRAINT fk_sub_cat FOREIGN KEY (idCategoriaAsociada) 
-        REFERENCES categorias(idCategoria) ON DELETE CASCADE
+    id_subcategoria BIGINT AUTO_INCREMENT PRIMARY KEY,
+    nombre_subcategoria VARCHAR(100) NOT NULL,
+    id_categoria BIGINT NOT NULL,
+    CONSTRAINT fk_sub_cat FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria) ON DELETE CASCADE
 );
 
--- Productos 
+-- PRODUCTOS
 CREATE TABLE productos (
-    idProducto INT AUTO_INCREMENT PRIMARY KEY,
-    idSubcategoriaAsociada INT NOT NULL,
-    nombreProducto VARCHAR(150) NOT NULL,
-    descripcionProducto TEXT,
-    precioProducto DOUBLE NOT NULL DEFAULT 0.0,
-    stockProducto INT NOT NULL DEFAULT 0,
-    imagenProducto VARCHAR(255) DEFAULT 'default-prod.jpg',
-    CONSTRAINT fk_prod_sub FOREIGN KEY (idSubcategoriaAsociada) 
-        REFERENCES subcategorias(idSubcategoria) ON DELETE RESTRICT
+    id_producto BIGINT AUTO_INCREMENT PRIMARY KEY,
+    nombre_producto VARCHAR(150) NOT NULL,
+    descripcion_producto TEXT,
+    precio_producto DOUBLE NOT NULL DEFAULT 0.0,
+    stock_producto INT NOT NULL DEFAULT 0,
+    imagen_producto VARCHAR(255),
+    id_subcategoria BIGINT NOT NULL,
+    CONSTRAINT fk_prod_sub FOREIGN KEY (id_subcategoria) REFERENCES subcategorias(id_subcategoria) ON DELETE CASCADE
 );
+
+CREATE TABLE contactos (
+    id_contacto BIGINT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    email VARCHAR(150) NOT NULL,
+    mensaje VARCHAR(1000) NOT NULL,
+    fecha_envio DATETIME NOT NULL
+);
+
+-- Tabla para la entidad Suscriptor
+CREATE TABLE suscriptores (
+    id_suscriptor BIGINT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    fecha_suscripcion DATETIME NOT NULL
+);
+
 
 -- Insertamos los roles base para que no te de error el sistema
 INSERT INTO roles (nombre) VALUES ('ROLE_ADMIN'), ('ROLE_CLIENT');
@@ -104,3 +118,7 @@ SELECT * FROM categorias;
 SELECT * FROM subcategorias;
 
 SELECT * FROM productos;
+
+SELECT * FROM contactos;
+
+SELECT * FROM suscriptores;

@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.io.IOException;
-import org.springframework.web.bind.annotation.*;
 
 
 @Controller
@@ -40,7 +39,7 @@ public class ProductoController {
     /**
      * CATÁLOGO Y FILTROS (Acceso público/cliente)
      */
-    @GetMapping
+    @GetMapping({"", "/"})
     public String listarYFiltrar(
             @RequestParam(required = false) String txtBuscar,
             @RequestParam(required = false) Long idCategoria,
@@ -56,6 +55,7 @@ public class ProductoController {
             model.addAttribute("productos", productoService.listar(txtBuscar, idCategoria, idSubcategoria, orden, esAdmin));
             model.addAttribute("listaCategorias", catService.listarTodas());
 
+            // Si hay categoría seleccionada, cargamos sus subcategorías para los botones de filtro
             if (idCategoria != null && idCategoria > 0) {
                 model.addAttribute("listaSubcategorias", subService.listarPorCategoria(idCategoria));
             }
@@ -67,14 +67,14 @@ public class ProductoController {
             model.addAttribute("error", "Hubo un problema al canalizar el catálogo de productos.");
         }
 
-        return "productos/productos";
+        return "public/productos"; // Ruta física de tu carpeta public
     }
 
     /**
      * FORMULARIO NUEVO / EDITAR (Solo Admin)
      */
     @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping("/gestion")
+    @GetMapping("/admin/gestion")
     public String mostrarFormulario(@RequestParam(required = false) String action,
                                     @RequestParam(required = false) Long id, Model model) {
 
@@ -88,7 +88,7 @@ public class ProductoController {
                 model.addAttribute("producto", p);
             } else {
                 Producto nuevo = new Producto();
-                nuevo.setImagen("productos/default.jpg"); // Imagen base por defecto
+                nuevo.setImagen("default.jpg"); // Imagen base por defecto
                 model.addAttribute("producto", nuevo);
             }
         } catch (MagicalNotFoundException e) {
@@ -96,17 +96,17 @@ public class ProductoController {
             return "redirect:/productos";
         }
 
-        return "productos/producto-form";
+        return "admin/inventario/producto-form";
     }
 
     /**
      * GUARDAR (Solo Admin)
      */
     @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/guardar")
+    @PostMapping("/admin/guardar")
     public String guardar(@Valid @ModelAttribute("producto") Producto producto,
                           BindingResult result,
-                          @RequestParam("archivoImagen") MultipartFile archivo,
+                          @RequestParam(value = "archivoImagen", required = false) MultipartFile archivo,
                           @RequestParam(required = false) String imagenExistente,
                           @RequestParam(required = false) String imagenActual,
                           RedirectAttributes flash, Model model) {
@@ -114,18 +114,27 @@ public class ProductoController {
         if (result.hasErrors()) {
             model.addAttribute("subcategorias", subService.listarTodas());
             model.addAttribute("galeriaImagenes", uploadService.listarGaleria());
-            return "productos/producto-form";
+            return "admin/inventario/producto-form";
         }
 
         try {
+            // Si el ID es 0, lo ponemos en null para que JPA haga INSERT
+            if (producto.getId() != null && producto.getId() == 0) {
+                producto.setId(null);
+            }
+
             // Lógica de imagen: Prioridad 1: Subir nuevo / Prioridad 2: Elegir galería / Prioridad 3: Mantener actual
             String imagenFinal;
-            if (!archivo.isEmpty()) {
+            if (archivo != null && !archivo.isEmpty()) {
+                // Si había una imagen previa que no es default y no es de galería, la borramos
+                if (imagenActual != null && !imagenActual.equals("default.jpg") && !imagenActual.contains("/")) {
+                    uploadService.eliminar(imagenActual, "productos");
+                }
                 imagenFinal = uploadService.copiar(archivo, "productos");
             } else if (imagenExistente != null && !imagenExistente.isEmpty()) {
                 imagenFinal = imagenExistente;
             } else {
-                imagenFinal = (imagenActual != null && !imagenActual.isEmpty()) ? imagenActual : "productos/default.jpg";
+                imagenFinal = (imagenActual != null && !imagenActual.isEmpty()) ? imagenActual : "default.jpg";
             }
 
             producto.setImagen(imagenFinal);
@@ -138,10 +147,10 @@ public class ProductoController {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("subcategorias", subService.listarTodas());
             model.addAttribute("galeriaImagenes", uploadService.listarGaleria());
-            return "productos/producto-form";
+            return "admin/inventario/producto-form";
         } catch (IOException e) {
             flash.addFlashAttribute("error", "Error místico al procesar la imagen del objeto.");
-            return "redirect:/productos/gestion";
+            return "redirect:/productos/admin/gestion";
         }
     }
 
@@ -149,7 +158,7 @@ public class ProductoController {
      * ELIMINAR (Solo Admin)
      */
     @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping("/eliminar/{id}")
+    @PostMapping("/admin/eliminar/{id}")
     public String eliminar(@PathVariable Long id, RedirectAttributes flash) {
         try {
             productoService.eliminar(id);

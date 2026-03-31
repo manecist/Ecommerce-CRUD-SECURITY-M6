@@ -1,0 +1,58 @@
+Instrucciones de ejecución
+
+1. Descargar desde GitHub link -> https://github.com/manecist/Ecommerce-CRUD-SECURITY-M6
+2. Extraer Zip
+3. Abrir desde el IDE IntelliJ o cualquier otro IDE como Netbeans
+4. Open folder -> Confió en el archivo
+5. Antes de ejecutar se debe crear la base de datos llamada -> crud_ecommerce_m6;
+6. Escribir en application properties la base de datos
+7. Ejecutar el scrip M6 que esta dentro de la carpeta para aplicar mi lógica de tablas dentro de la base de datos
+8. Voy a C:\ProyectosSpringBoot\demoCrudEcommerceM6\src\main\java\com\magicalAliance\DemoCrudEcommerceM6Application.java
+9. Aplico Run desde app  o bien desde la carpeta de demoCrudEcommerceM6 en la opción terminal uso comando mvn spring-boot:run
+10. Escribo en Url -> http://localhost:8080/ o http://localhost:8080/home
+11. Se vera la app gracias al tomcat interno y se puede navegar en ella mientras la terminar este ejecutada.
+ 
+
+Descripción de rutas por rol  
+
+ 
+METODOS		RUTAS DE ROL ADMIN				DESCRIPCION
+GET		/usuarios/admin/gestion             		Gestión de usuarios
+GET		/usuarios/admin/nuevo               		Formulario nuevo usuario
+GET		/usuarios/admin/editar/{id}          		Editar usuario
+POST		/usuarios/admin/guardar             		Guardar usuario
+POST		/usuarios/admin/cambiar-rol          		Cambiar rol de usuario
+GET		/usuarios/admin/verificar-rut/{rut} 		Verificar RUT
+POST		/usuarios/eliminar/{id}              		Eliminar usuario
+GET		/productos/admin/gestion            		Gestión de productos
+POST		/productos/admin/guardar            		Guardar producto
+POST		/productos/admin/eliminar/{id}       		Eliminar producto
+GET/POST	/admin/categorias/**                		CRUD categorías
+GET/POST	/admin/subcategorias/**              		CRUD subcategorías
+
+
+
+METODOS	 	RUTA PARA ROLES ADMIN Y CLIENT				 DESCRIPCION
+GET	/usuarios/perfil					Ir al perfil propio
+GET	/usuarios/perfil/{id}					Ver perfil por ID
+POST	/usuarios/editar-acceso/{id}				Cambiar email/contraseña
+POST	/usuarios/editar-datos/{id}				Editar datos personales
+POST	/usuarios/direcciones/agregar/{usuarioId}            	Agregar dirección
+POST	/usuarios/direcciones/editar/{usuarioId}/{dirId}    	Editar dirección
+POST	/usuarios/direcciones/principal/{usuarioId}/{dirId}  	Marcar dirección principal
+POST	/usuarios/direcciones/eliminar/{usuarioId}/{dirId}   	Eliminar dirección
+
+
+Notas de configuración
+
+1. CREATE DATABASE crud_ecommerce_m6;
+2. USAR LA BASE DE DATOS EN APLICATION PROPERTIES
+3. USAR EL SCRIPT DE BASE DATOS
+4. USAR PARA ROL ADMIN EL EMAIL admin@magical.cl
+5. PASSWORD Admin.2026! -> creado desde java para ver la codificación correcta
+6. PARA ROL CLIENT EL EMAIL usuario2@magical.cl
+7. PASSWORD Usuario.2026! -> creado desde registro de la app de ecommerce
+8. REVISAR LA LOGICA DEL CRUD DE USUARIOS Y PRODUCTOS LIBREMENTE
+9. AUN NO TIENE CARRITO, YA QUE NO LO PEDIAN, PERO SI ESTARA EN TRABAJO FINAL
+
+*IMAGENES DE PRUEBA DE LOS FALLOS POR ACCESO DENEGADO A RUTAS RESTRINGIDAS ENTRE OTRAS IMAGENES

@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import org.springframework.web.bind.annotation.*;
 
 @Controller
 public class AuthController {
@@ -28,60 +27,77 @@ public class AuthController {
     @Autowired
     private UsuarioMapper usuarioMapper;
 
-    // Sustituye al LoginServlet (doGet)
+    // --- 1. ACCESO AL PORTAL (LOGIN) ---
     @GetMapping("/login")
     public String login(Authentication auth,
                         @RequestParam(value = "error", required = false) String error,
                         @RequestParam(value = "logout", required = false) String logout,
                         Model model) {
 
-        // Si ya está logueado, lo mandamos al home (evita que un logueado vea el login)
+        // Primero reviso si quien intenta entrar ya tiene una sesión activa y real.
+        // Si ya está logueado, lo redirecciono al home para que no pierda tiempo en el login.
         if (auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken)) {
             return "redirect:/home";
         }
 
-        // Mensajes que venían del Servlet antiguo
-        if (error != null) model.addAttribute("error", "Credenciales incorrectas o cuenta inexistente.");
-        if (logout != null) model.addAttribute("msg", "Has cerrado tu sesión en la Alianza correctamente.");
+        // Si detecto un error en los parámetros (enviado por Spring Security mediante /login?error=true),
+        // preparo los mensajes para mis modales mágicos.
+        if (error != null) {
+            model.addAttribute("error", "Credenciales incorrectas o cuenta inexistente.");
+            model.addAttribute("mensajeError", "Tus credenciales no tienen suficiente maná o son incorrectas.");
+        }
 
-        return "usuarios/login";
+        // Si el usuario viene de un cierre de sesión (/login?logout), le confirmo que ha salido del reino con éxito.
+        if (logout != null) {
+            model.addAttribute("msg", "Has cerrado tu sesión en la Alianza correctamente.");
+        }
+
+        // CORRECCIÓN DE RUTA: templates/public/login.html
+        return "public/login";
     }
 
-    // Sustituye al UsuarioServlet (action=new)
+    // --- 2. MANIFESTACIÓN DE NUEVAS GUARDIANAS (REGISTRO PÚBLICO) ---
     @GetMapping("/registro")
     public String mostrarRegistro(Model model) {
+        // Preparo un DTO de registro vacío para que el formulario sepa qué datos recolectar.
         model.addAttribute("registroDTO", new RegistroDTO());
-        return "usuarios/registro";
+        // CORRECCIÓN DE RUTA: templates/public/registro.html
+        return "public/registro";
     }
 
-    // Sustituye al UsuarioServlet (doPost para nuevos usuarios)
     @PostMapping("/registro")
     public String registrar(@Valid @ModelAttribute("registroDTO") RegistroDTO dto,
                             BindingResult result,
                             RedirectAttributes flash,
                             Model model) {
 
+        // Primero compruebo si el formulario cumple con todas mis reglas sagradas (RUT, formato de email, etc.).
         if (result.hasErrors()) {
-            return "usuarios/registro";
+            return "public/registro";
         }
 
         try {
-            // Transformamos y registramos
+            // Transformo los datos del DTO en una entidad Usuario real usando mi Mapper.
             Usuario usuario = usuarioMapper.toUsuario(dto);
+
+            // Le entrego el usuario al servicio para que lo registre (encriptando su clave y vinculando su Cliente).
             usuarioService.registrarUsuario(usuario);
 
-            // Mensaje de éxito para el Login
-            flash.addFlashAttribute("exito", "¡Registro exitoso! Ya puedes iniciar sesión.");
+            // Si todo sale bien, guardo un mensaje de éxito que sobrevivirá al redireccionamiento.
+            flash.addFlashAttribute("exito", "¡Registro exitoso! Ya puedes iniciar sesión en la Alianza.");
             return "redirect:/login";
 
         } catch (MagicalBusinessException e) {
-            // Capturamos el error (RUT duplicado, menor de edad, etc.) y volvemos al form
+            // Si el servicio detecta que el RUT ya existe o es menor de edad, capturo su mensaje y te lo devuelvo.
             model.addAttribute("error", e.getMessage());
-            model.addAttribute("registroDTO", dto); // Para no perder lo escrito
-            return "usuarios/registro";
+            model.addAttribute("mensajeError", e.getMessage());
+            model.addAttribute("registroDTO", dto); // Mantengo tus datos escritos para que no tengas que empezar de cero.
+            return "public/registro";
+
         } catch (Exception e) {
+            // Ante cualquier interferencia oscura o error técnico, te aviso de inmediato.
             model.addAttribute("error", "Error inesperado en el reino: " + e.getMessage());
-            return "usuarios/registro";
+            return "public/registro";
         }
     }
 }

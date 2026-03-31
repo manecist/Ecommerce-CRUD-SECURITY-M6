@@ -1,28 +1,19 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{layout/header :: head}"></head>
+<head th:replace="~{public/layout/header :: head}"></head>
 <body>
-<div th:replace="~{layout/header :: header}"></div>
+<div th:replace="~{public/layout/header :: header}"></div>
 
 <div class="container mt-5">
 
-    <div th:if="${error != null or param.msj != null}" class="mb-4">
+    <div th:if="${error != null or success != null}" class="mb-4">
         <div th:if="${error != null}" class="alert alert-magica bg-white border-0 shadow-sm text-danger">
             <i class="bi bi-magic me-2 icon-morado"></i>
             <strong>¡Hechizo fallido!</strong> <span th:text="${error}"></span>
         </div>
 
-        <div th:if="${param.msj == 'save_ok'}" class="alert alert-magica bg-white border-0 shadow-sm text-success">
-            <i class="bi bi-stars me-2 icon-turquesa"></i> ¡Subcategoría guardada correctamente!
-        </div>
-
-        <div th:if="${param.msj == 'delete_ok'}" class="alert alert-magica bg-white border-0 shadow-sm text-info">
-            <i class="bi bi-trash2 me-2 icon-rosa"></i> Subcategoría desvanecida con éxito.
-        </div>
-
-        <div th:if="${param.msj == 'error_ref'}" class="alert alert-magica bg-white border-0 shadow-sm text-danger">
-            <i class="bi bi-exclamation-octagon me-2 icon-morado"></i>
-            <strong>Error de Seguridad:</strong> Hay productos vinculados a esta esencia.
+        <div th:if="${success != null}" class="alert alert-magica bg-white border-0 shadow-sm text-success">
+            <i class="bi bi-stars me-2 icon-turquesa"></i> <span th:text="${success}"></span>
         </div>
     </div>
 
@@ -31,40 +22,40 @@
             <div class="card card-magica-form shadow-lg border-0">
                 <div class="card-header text-center py-3">
                     <h5 class="mb-0 fw-bold"
-                        th:text="${subcategoriaEnEdicion != null and subcategoriaEnEdicion.idSubcategoria != 0} ? '📝 Editar Esencia' : '➕ Nueva Subcategoría'">
+                        th:text="${subcategoriaEnEdicion.id != null and subcategoriaEnEdicion.id != 0} ? '📝 Editar Esencia' : '➕ Nueva Subcategoría'">
                     </h5>
                 </div>
                 <div class="card-body p-4 bg-white container-inferior-magic">
-                    <form th:action="@{/gestion-subcategorias}" method="post">
-                        <input type="hidden" name="idSubcategoria"
-                               th:value="${subcategoriaEnEdicion != null} ? ${subcategoriaEnEdicion.idSubcategoria} : 0">
+                    <form th:action="@{/admin/subcategorias/guardar}" th:object="${subcategoriaEnEdicion}" method="post">
+
+                        <input type="hidden" th:field="*{id}">
 
                         <div class="mb-3">
                             <label class="form-label label-magico text-uppercase">Categoría Padre</label>
-                            <select name="idCategoriaAsociada" class="form-select input-magico" required>
-                                <option value="" disabled th:selected="${subcategoriaEnEdicion == null}">-- Elige el Origen --</option>
+                            <select th:field="*{categoria}" class="form-select input-magico" required>
+                                <option value="" th:selected="${subcategoriaEnEdicion.categoria == null}">-- Elige el Origen --</option>
                                 <option th:each="cat : ${categorias}"
-                                        th:value="${cat.idCategoria}"
-                                        th:text="${cat.nombreCategoria}"
-                                        th:selected="${subcategoriaEnEdicion != null and subcategoriaEnEdicion.idCategoriaAsociada == cat.idCategoria}">
+                                        th:value="${cat.id}"
+                                        th:text="${cat.nombre}">
                                 </option>
                             </select>
+                            <div class="text-danger small" th:if="${#fields.hasErrors('categoria')}" th:errors="*{categoria}"></div>
                         </div>
 
                         <div class="mb-4">
                             <label class="form-label label-magico text-uppercase">Nombre Subcategoría</label>
-                            <input type="text" name="nombreSubcategoria" class="form-control input-magico"
-                                   th:value="${subcategoriaEnEdicion != null} ? ${subcategoriaEnEdicion.nombreSubcategoria} : ''"
+                            <input type="text" th:field="*{nombre}" class="form-control input-magico"
                                    placeholder="Ej: Varitas de Sauce" required>
+                            <div class="text-danger small" th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}"></div>
                         </div>
 
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-turquesa-magico py-2 fw-bold">
                                 <i class="bi bi-lightning-charge me-1"></i>
-                                <span th:text="${subcategoriaEnEdicion != null and subcategoriaEnEdicion.idSubcategoria != 0} ? 'Actualizar' : 'Manifestar'"></span>
+                                <span th:text="${subcategoriaEnEdicion.id != null and subcategoriaEnEdicion.id != 0} ? 'Actualizar' : 'Manifestar'"></span>
                             </button>
-                            <a th:if="${subcategoriaEnEdicion != null and subcategoriaEnEdicion.idSubcategoria != 0}"
-                               th:href="@{/gestion-subcategorias}"
+                            <a th:if="${subcategoriaEnEdicion.id != null and subcategoriaEnEdicion.id != 0}"
+                               th:href="@{/admin/subcategorias/gestion}"
                                class="btn btn-link text-muted text-decoration-none text-center small">Cancelar Edición</a>
                         </div>
                     </form>
@@ -87,14 +78,14 @@
                             <tbody>
                             <tr th:each="s : ${subcategorias}">
                                 <td>
-                                            <span class="badge rounded-pill badge-rol bg-info text-dark"
-                                                  th:text="${s.nombreCategoria}">
-                                            </span>
+                                    <span class="badge rounded-pill badge-rol bg-info text-dark"
+                                          th:text="${s.categoria.nombre}">
+                                    </span>
                                 </td>
-                                <td class="fw-bold text-dark" th:text="${s.nombreSubcategoria}"></td>
+                                <td class="fw-bold text-dark" th:text="${s.nombre}"></td>
                                 <td class="pe-4">
                                     <div class="btn-group gap-2">
-                                        <a th:href="@{/gestion-subcategorias(action='edit', idSubcategoria=${s.idSubcategoria})}"
+                                        <a th:href="@{/admin/subcategorias/gestion(action='edit', id=${s.id})}"
                                            class="btn btn-editar-magico btn-sm btn-redondo shadow-sm">
                                             <i class="bi bi-pencil-square"></i>
                                         </a>
@@ -103,7 +94,7 @@
                                                 class="btn btn-eliminar-magico btn-sm btn-redondo shadow-sm"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#deleteSubModal"
-                                                th:onclick="prepararBorradoSub([[${s.idSubcategoria}]], [[${s.nombreSubcategoria}]])">
+                                                th:onclick="prepararBorradoSub([[${s.id}]], [[${s.nombre}]])">
                                             <i class="bi bi-trash3-fill"></i>
                                         </button>
                                     </div>
@@ -135,14 +126,22 @@
             <div class="modal-footer border-0 bg-light justify-content-center pb-4 gap-3">
                 <button type="button" class="btn btn-secondary rounded-pill px-4"
                         data-bs-dismiss="modal">Conservar</button>
-                <a id="btnConfirmarBorrado" href="#" class="btn btn-eliminar-magico px-4">Eliminar Definitivamente</a>
+                <form id="formEliminarSub" method="post" action="#">
+                    <button type="submit" class="btn btn-eliminar-magico px-4">Eliminar Definitivamente</button>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
-<div th:replace="~{layout/footer :: footer}"></div>
+<div th:replace="~{public/layout/footer :: footer}"></div>
 
+<script>
+    function prepararBorradoSub(id, nombre) {
+        document.getElementById('nombreSubBorrar').innerText = nombre;
+        document.getElementById('formEliminarSub').action = '/admin/subcategorias/eliminar/' + id;
+    }
+</script>
 
 </body>
 </html>

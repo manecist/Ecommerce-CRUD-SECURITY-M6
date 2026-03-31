@@ -1,11 +1,13 @@
 package com.magicalAliance.service.usuario;
 
+import com.magicalAliance.dto.usuario.RegistroDTO;
 import com.magicalAliance.entity.usuario.Cliente;
 import com.magicalAliance.entity.usuario.DireccionCliente;
 import com.magicalAliance.entity.usuario.Rol;
 import com.magicalAliance.entity.usuario.Usuario;
 import com.magicalAliance.exception.MagicalBusinessException;
 import com.magicalAliance.exception.MagicalNotFoundException;
+import com.magicalAliance.mapper.UsuarioMapper;
 import com.magicalAliance.repository.usuario.ClienteRepository;
 import com.magicalAliance.repository.usuario.DireccionRepository;
 import com.magicalAliance.repository.usuario.RolRepository;
@@ -27,6 +29,7 @@ public class UsuarioServiceImpl implements IUsuarioService {
     @Autowired private DireccionRepository direccionRepo;
     @Autowired private ClienteRepository clienteRepo;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private UsuarioMapper usuarioMapper; // Agregado para soporte de mapeo
 
     // --- BUSQUEDAS ---
 
@@ -95,33 +98,47 @@ public class UsuarioServiceImpl implements IUsuarioService {
     @Override
     @Transactional
     public Usuario registrarUsuario(Usuario usuario) {
-        // AJUSTE: Validación de rango de edad
-        if (usuario.getCliente().getFechaNacimiento() != null) {
-            int edad = usuario.getCliente().getEdad();
-            if (edad < 18 || edad > 105) throw new MagicalBusinessException("La edad debe estar entre 18 y 105 años.");
+        // 1. Validación de edad (Usando el método de la entidad Cliente que ya tienes)
+        if (usuario.getCliente() != null) {
+            if (!usuario.getCliente().esMayorDeEdad()) {
+                throw new MagicalBusinessException("El guardiana debe ser mayor de 18 años para unirse a la Alianza.");
+            }
+            // Validamos el límite superior de 105 años
+            if (usuario.getCliente().getEdad() > 105) {
+                throw new MagicalBusinessException("La edad máxima permitida es 105 años.");
+            }
         }
 
-        // 1. Limpiamos el RUT antes de cualquier lógica
+        // 2. Limpieza de RUT (Fundamental para evitar duplicados como "12.345-6" vs "123456")
         String rutLimpio = limpiarRut(usuario.getCliente().getRut());
         usuario.getCliente().setRut(rutLimpio);
 
-        // 2. ¿Ya existe como cliente? (Invitado previo)
-        // Si existe, vinculamos ese cliente al nuevo usuario en lugar de crear uno duplicado
+        // 3. Verificación de Duplicados
+        if (usuarioRepo.findByEmail(usuario.getEmail()).isPresent()) {
+            throw new MagicalBusinessException("El email " + usuario.getEmail() + " ya tiene una cuenta activa.");
+        }
+
+        if (usuarioRepo.findByClienteRut(rutLimpio).isPresent()) {
+            throw new MagicalBusinessException("Este RUT ya tiene una cuenta de usuario vinculada.");
+        }
+
+        // 4. Validación y Encriptación de Contraseña
+        if (usuario.getPassword() == null || usuario.getPassword().isBlank()) {
+            throw new MagicalBusinessException("La contraseña es obligatoria para registrarse.");
+        }
+        if (!usuario.getPassword().matches("^(?=.*[A-Z])(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,}$")) {
+            throw new MagicalBusinessException("La contraseña debe tener mínimo 8 caracteres, una mayúscula y un carácter especial.");
+        }
+        usuario.setPassword(passwordEncoder.encode(usuario.getPassword()));
+
+        // 5. Verificación de Cliente Existente (El flujo de Invitado que mencionaste)
+        // Si ya existe en la tabla clientes (por una compra previa), lo rescatamos para no duplicar.
         clienteRepo.findByRut(rutLimpio).ifPresent(existente -> {
-            if (usuarioRepo.findByClienteRut(rutLimpio).isPresent()) {
-                throw new MagicalBusinessException("Este RUT ya tiene una cuenta de usuario activa.");
-            }
-            usuario.setCliente(existente); // Vinculamos al cliente que ya existía
+            // Fusionamos datos si es necesario o simplemente vinculamos
+            usuario.setCliente(existente);
         });
 
-        // 3. Seguridad y Roles
-        usuario.setPassword(passwordEncoder.encode(usuario.getPassword()));
-        usuario.getCliente().setEmail(usuario.getEmail());
-
-        Rol rol = rolRepo.findByNombre("ROLE_CLIENT")
-                .orElseThrow(() -> new MagicalNotFoundException("El rol ROLE_CLIENT no existe en el reino."));
-        usuario.setRol(rol);
-
+        // 6. Guardado (Gracias al CascadeType.ALL en Usuario, se guarda el Cliente automáticamente)
         return usuarioRepo.save(usuario);
     }
 
@@ -162,7 +179,13 @@ public class UsuarioServiceImpl implements IUsuarioService {
             throw new MagicalBusinessException("Error: El email " + u.getEmail() + " ya está registrado.");
         }
 
-        // 4. Encriptamos la clave enviada por el Admin
+        // 4. Validación y Encriptación de Contraseña
+        if (u.getPassword() == null || u.getPassword().isBlank()) {
+            throw new MagicalBusinessException("La contraseña es obligatoria al crear un usuario.");
+        }
+        if (!u.getPassword().matches("^(?=.*[A-Z])(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,}$")) {
+            throw new MagicalBusinessException("La contraseña debe tener mínimo 8 caracteres, una mayúscula y un carácter especial.");
+        }
         u.setPassword(passwordEncoder.encode(u.getPassword()));
 
         // 5. Asignamos el Rol elegido en el formulario
@@ -196,6 +219,101 @@ public class UsuarioServiceImpl implements IUsuarioService {
     }
 
     // --- EDITAR CREDENCIALES (Email/Pass) ---
+
+    @Override
+    @Transactional
+    public Usuario actualizarUsuarioDesdeAdmin(RegistroDTO dto, Long idRol) {
+        // 1. BUSQUEDA DEL USUARIO EXISTENTE
+        Usuario usuarioPersistente = usuarioRepo.findById(dto.getId())
+                .orElseThrow(() -> new MagicalNotFoundException("No se encontró el habitante con ID: " + dto.getId()));
+
+        // AGREGADO: Sincronización mediante Mapper para asegurar persistencia de campos como teléfono
+        usuarioMapper.updateEntity(dto, usuarioPersistente);
+
+        // 2. VALIDACIÓN Y ACTUALIZACIÓN DE EMAIL (CUENTA Y CLIENTE)
+        // Solo validamos si el email cambió respecto al que ya tiene
+        if (!usuarioPersistente.getEmail().equalsIgnoreCase(dto.getEmail())) {
+            if (usuarioRepo.findByEmail(dto.getEmail()).isPresent()) {
+                throw new MagicalBusinessException("El email " + dto.getEmail() + " ya está en uso por otro habitante.");
+            }
+            usuarioPersistente.setEmail(dto.getEmail());
+            // Sincronizamos con la ficha de cliente para que no haya discrepancias
+            if (usuarioPersistente.getCliente() != null) {
+                usuarioPersistente.getCliente().setEmail(dto.getEmail());
+            }
+        }
+
+        // 3. ACTUALIZACIÓN DE CONTRASEÑA
+        // Solo encriptamos si el Admin escribió una nueva (no viene vacía)
+        if (dto.getPassword() != null && !dto.getPassword().isBlank() && !dto.getPassword().equals("********")) {
+            usuarioPersistente.setPassword(passwordEncoder.encode(dto.getPassword()));
+        }
+
+        // 4. ACTUALIZACIÓN DEL ROL
+        Rol nuevoRol = rolRepo.findById(idRol)
+                .orElseThrow(() -> new MagicalNotFoundException("El rol solicitado no existe en la Alianza."));
+        usuarioPersistente.setRol(nuevoRol);
+
+        // 5. ACTUALIZACIÓN DE DATOS PERSONALES (CLIENTE)
+        Cliente c = usuarioPersistente.getCliente();
+        c.setNombre(dto.getNombre());
+        c.setApellido(dto.getApellido());
+        c.setTelefono(dto.getTelefono());
+        c.setFechaNacimiento(dto.getFechaNacimiento());
+
+        // 6. VALIDACIÓN DE RUT (LIMPIEZA Y DUPLICADOS)
+        String rutLimpio = limpiarRut(dto.getRut());
+        // Si el RUT es distinto al actual, verificamos que no lo tenga otro
+        if (!c.getRut().equals(rutLimpio)) {
+            if (clienteRepo.findByRut(rutLimpio).isPresent()) {
+                throw new MagicalBusinessException("El RUT " + dto.getRut() + " ya pertenece a otra guardiana.");
+            }
+            c.setRut(rutLimpio);
+        }
+
+        // 7. VALIDACIÓN DE EDAD (REGLAS DE LA ALIANZA)
+        if (c.getEdad() < 18 || c.getEdad() > 105) {
+            throw new MagicalBusinessException("La edad debe estar entre 18 y 105 años para ser parte del reino.");
+        }
+
+        // 8. GESTIÓN DE DIRECCIÓN COMPLETA (PAÍS, REGIÓN, CIUDAD, CALLE)
+        // Buscamos si el cliente ya tiene una dirección principal para actualizarla, sino la creamos.
+        if (dto.getDireccion() != null && !dto.getDireccion().isBlank()) {
+
+            // SI EL DTO DICE QUE ES PRINCIPAL, DESMARCAMOS LAS OTRAS
+            if (dto.isEsPrincipal()) {
+                c.getDirecciones().forEach(d -> d.setEsPrincipal(false));
+            }
+
+            DireccionCliente dirPrincipal = c.getDirecciones().stream()
+                    .filter(DireccionCliente::isEsPrincipal)
+                    .findFirst()
+                    .orElse(null);
+
+            if (dirPrincipal == null && !c.getDirecciones().isEmpty()) {
+                dirPrincipal = c.getDirecciones().get(0);
+            } else if (dirPrincipal == null) {
+                // Si no tiene principal (error raro pero posible), creamos una nueva
+                dirPrincipal = DireccionCliente.builder()
+                        .cliente(c)
+                        .esPrincipal(true)
+                        .build();
+                c.getDirecciones().add(dirPrincipal);
+            }
+
+            // Seteamos todos los campos del DTO a la entidad persistente
+            dirPrincipal.setPais(dto.getPais());
+            dirPrincipal.setEstadoRegion(dto.getEstadoRegion());
+            dirPrincipal.setCiudad(dto.getCiudad());
+            dirPrincipal.setDireccion(dto.getDireccion());
+            dirPrincipal.setCodigoPostal(dto.getCodigoPostal());
+            dirPrincipal.setEsPrincipal(dto.isEsPrincipal()); // SINCRONIZACIÓN CON EL CHECKBOX
+        }
+
+        // 9. GUARDADO FINAL (CASCADE PERSISTE USUARIO, CLIENTE Y DIRECCIONES)
+        return usuarioRepo.save(usuarioPersistente);
+    }
+
     @Override
     @Transactional
     public void actualizarCredenciales(Long id, String email, String password) {
@@ -224,36 +342,38 @@ public class UsuarioServiceImpl implements IUsuarioService {
         usuarioRepo.save(u);
     }
 
-    // --- EDITAR DATOS PERSONALES (Nombre/Apel/Fec/Tel) ---
-    @Override
-    @Transactional
-    public Usuario actualizarDatosPersonales(Long id, Cliente nuevos) {
-        // Solo permitimos la edición si el usuario existe (es decir, está registrado)
-        Usuario u = usuarioRepo.findById(id).orElseThrow(() ->
-                new MagicalNotFoundException("Usuario no encontrado"));
 
-        // Si llegamos aquí, es porque es un Usuario Registrado o el Admin editando.
+    @Transactional
+    public Usuario actualizarDatosPersonales(Long id, Cliente nuevos, boolean esAdmin) {
+        Usuario u = usuarioRepo.findById(id)
+                .orElseThrow(() -> new MagicalNotFoundException("Usuario no encontrado"));
         Cliente c = u.getCliente();
 
-        if (nuevos.getNombre() != null) c.setNombre(nuevos.getNombre());
-        if (nuevos.getApellido() != null) c.setApellido(nuevos.getApellido());
-        if (nuevos.getTelefono() != null) c.setTelefono(nuevos.getTelefono());
+        // 1. Datos básicos (Permitidos para todos)
+        if (nuevos.getNombre() != null && !nuevos.getNombre().isBlank())
+            c.setNombre(nuevos.getNombre());
 
-        // AJUSTE: Validación de edad al editar
-        if (nuevos.getFechaNacimiento() != null) {
+        if (nuevos.getApellido() != null && !nuevos.getApellido().isBlank())
+            c.setApellido(nuevos.getApellido());
+
+        if (nuevos.getTelefono() != null)
+            c.setTelefono(nuevos.getTelefono());
+
+        if (nuevos.getFechaNacimiento() != null)
             c.setFechaNacimiento(nuevos.getFechaNacimiento());
-            if (c.getEdad() < 18 || c.getEdad() > 105) throw new MagicalBusinessException("La edad debe estar entre 18 y 105 años.");
-        }
 
-        // Sincronización de Email (Privilegio de cuenta)
-        if (nuevos.getEmail() != null && !nuevos.getEmail().isBlank()) {
-            // Validar que el nuevo email no lo tenga otro
-            if (!nuevos.getEmail().equalsIgnoreCase(u.getEmail()) &&
-                    usuarioRepo.findByEmail(nuevos.getEmail()).isPresent()) {
-                throw new MagicalBusinessException("El email ya está en uso por otro usuario.");
+        // 2. Datos sensibles (SOLO SI ES ADMIN)
+        if (esAdmin) {
+            // Actualizar RUT
+            if (nuevos.getRut() != null && !nuevos.getRut().isBlank()) {
+                c.setRut(limpiarRut(nuevos.getRut()));
             }
-            c.setEmail(nuevos.getEmail());
-            u.setEmail(nuevos.getEmail());
+            // Actualizar Email (Si el email está en la entidad Cliente o Usuario)
+            if (nuevos.getEmail() != null && !nuevos.getEmail().isBlank()) {
+                c.setEmail(nuevos.getEmail());
+                // Nota: Si el email es el username en 'Usuario',
+                // deberías actualizar u.setEmail(nuevos.getEmail()) también.
+            }
         }
 
         return usuarioRepo.save(u);
@@ -317,12 +437,22 @@ public class UsuarioServiceImpl implements IUsuarioService {
     }
 
 
-    // --- GESTIÓN DE DIRECCIONES ---
+    // --- GESTIÓN DE DIRECCIONES (CON CAMPOS CORREGIDOS) ---
     @Override
     @Transactional
     public void agregarDireccion(Long usuarioId, DireccionCliente dir) {
+        // Busco al usuario para añadirle su nueva morada.
         Usuario u = usuarioRepo.findById(usuarioId).orElseThrow(()->
                 new MagicalNotFoundException("Usuario no encontrado"));
+
+        // Si es la primera, la marco como principal por defecto.
+        if (u.getCliente().getDirecciones().isEmpty()) {
+            dir.setEsPrincipal(true);
+        } else if (dir.isEsPrincipal()) {
+            // Si el usuario marcó manualmente esta como principal, desmarco las anteriores.
+            u.getCliente().getDirecciones().forEach(d -> d.setEsPrincipal(false));
+        }
+
         dir.setCliente(u.getCliente());
         u.getCliente().getDirecciones().add(dir);
         usuarioRepo.save(u);
@@ -335,33 +465,63 @@ public class UsuarioServiceImpl implements IUsuarioService {
         DireccionCliente dirExistente = direccionRepo.findById(direccionId)
                 .orElseThrow(() -> new MagicalNotFoundException("Error: La dirección no existe."));
 
-        // 2. Actualizamos solo si los datos nuevos no son nulos (mantenemos lo anterior si no vienen)
+        // 2. Actualizamos respetando tus campos: ciudad, estadoRegion, pais, codigoPostal
         if (nuevos.getDireccion() != null) dirExistente.setDireccion(nuevos.getDireccion());
         if (nuevos.getCiudad() != null) dirExistente.setCiudad(nuevos.getCiudad());
         if (nuevos.getEstadoRegion() != null) dirExistente.setEstadoRegion(nuevos.getEstadoRegion());
         if (nuevos.getPais() != null) dirExistente.setPais(nuevos.getPais());
         if (nuevos.getCodigoPostal() != null) dirExistente.setCodigoPostal(nuevos.getCodigoPostal());
 
-        // Lógica para 'esPrincipal'
+        // Lógica para 'esPrincipal': Si esta se vuelve principal, las demás dejan de serlo.
         if (nuevos.isEsPrincipal()) {
-            // Si esta va a ser la principal, primero marcamos todas las demás del mismo cliente como FALSE
             dirExistente.getCliente().getDirecciones().forEach(d -> d.setEsPrincipal(false));
             dirExistente.setEsPrincipal(true);
-        } else {
-            dirExistente.setEsPrincipal(nuevos.isEsPrincipal());
         }
 
         // 3. Guardamos los cambios
         direccionRepo.save(dirExistente);
     }
 
+    // NUEVO MÉTODO PARA EL BOTÓN "Hacer Principal" DEL PERFIL
+    @Override
+    @Transactional
+    public void establecerDireccionPrincipal(Long usuarioId, Long direccionId) {
+        // Busco al usuario para manipular su lista de moradas.
+        Usuario u = usuarioRepo.findById(usuarioId)
+                .orElseThrow(() -> new MagicalNotFoundException("Usuario no encontrado"));
+
+        // Primero quito el rango de principal a todas sus direcciones actuales.
+        u.getCliente().getDirecciones().forEach(d -> d.setEsPrincipal(false));
+
+        // Luego busco la dirección específica y le otorgo el rango de principal.
+        u.getCliente().getDirecciones().stream()
+                .filter(d -> d.getId().equals(direccionId))
+                .findFirst()
+                .ifPresent(d -> d.setEsPrincipal(true));
+
+        usuarioRepo.save(u);
+    }
+
     @Override
     @Transactional
     public void eliminarDireccion(Long usuarioId, Long direccionId) {
         Usuario u = usuarioRepo.findById(usuarioId).orElseThrow(() ->
-                new MagicalNotFoundException("Error: La dirección no existe."));
+                new MagicalNotFoundException("Error: El habitante no existe."));
+
+        // Verifico si la dirección que voy a borrar es la principal para no dejar al usuario sin una.
+        Optional<DireccionCliente> aBorrar = u.getCliente().getDirecciones().stream()
+                .filter(d -> d.getId().equals(direccionId)).findFirst();
+
+        boolean eraPrincipal = aBorrar.isPresent() && aBorrar.get().isEsPrincipal();
+
         // orphanRemoval = true hará que al sacarla de la lista, se borre de la BD
         u.getCliente().getDirecciones().removeIf(d -> d.getId().equals(direccionId));
+
+        // Si borré la principal y aún quedan moradas, elijo la primera de la lista como nueva principal.
+        if (eraPrincipal && !u.getCliente().getDirecciones().isEmpty()) {
+            u.getCliente().getDirecciones().get(0).setEsPrincipal(true);
+        }
+
         usuarioRepo.save(u);
     }
 }

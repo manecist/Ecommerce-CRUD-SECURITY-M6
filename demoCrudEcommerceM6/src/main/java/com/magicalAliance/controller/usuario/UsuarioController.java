@@ -19,9 +19,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.util.List;
-import org.springframework.web.bind.annotation.*;
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 
 @Controller
 @RequestMapping("/usuarios")
@@ -55,7 +53,7 @@ public class UsuarioController {
             model.addAttribute("usuarios", usuarioService.listarTodos(orden));
         }
 
-        return "admin/gestion-usuario";
+        return "admin/usuarios/usuarios-list";
     }
 
     // --- 2. REGISTRO POR ADMIN ---
@@ -64,41 +62,111 @@ public class UsuarioController {
     public String formularioNuevoUsuario(Model model) {
         model.addAttribute("nuevoUsuario", new RegistroDTO());
         model.addAttribute("roles", rolRepo.findAll());
-        return "admin/form-usuario";
+        // Inicializamos idRolActual como nulo para el formulario de creación
+        model.addAttribute("idRolActual", null);
+        return "admin/usuarios/usuario-form";
+    }
+
+    // --- MÉTODO DE EDICIÓN PARA ADMIN ---
+    @GetMapping("/admin/editar/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String formularioEditarUsuario(@PathVariable Long id, Model model) {
+        Usuario u = usuarioService.buscarPorId(id)
+                .orElseThrow(() -> new MagicalNotFoundException("El habitante solicitado no existe."));
+
+        RegistroDTO dto = new RegistroDTO();
+        dto.setId(u.getId());
+        dto.setEmail(u.getEmail());
+        dto.setPassword(u.getPassword());
+
+        if (u.getCliente() != null) {
+            dto.setNombre(u.getCliente().getNombre());
+            dto.setApellido(u.getCliente().getApellido());
+            dto.setRut(u.getCliente().getRut());
+            dto.setTelefono(u.getCliente().getTelefono());
+            dto.setFechaNacimiento(u.getCliente().getFechaNacimiento());
+
+            u.getCliente().getDirecciones().stream()
+                    .filter(DireccionCliente::isEsPrincipal)
+                    .findFirst()
+                    .ifPresent(dir -> {
+                        dto.setPais(dir.getPais());
+                        dto.setEstadoRegion(dir.getEstadoRegion());
+                        dto.setCiudad(dir.getCiudad());
+                        dto.setDireccion(dir.getDireccion());
+                        dto.setCodigoPostal(dir.getCodigoPostal());
+                        dto.setEsPrincipal(true); // Cargamos el estado actual
+                    });
+        }
+
+        model.addAttribute("nuevoUsuario", dto);
+        model.addAttribute("roles", rolRepo.findAll());
+        model.addAttribute("idRolActual", u.getRol() != null ? u.getRol().getId() : null);
+        // Pasamos el usuario completo para mostrar todas sus direcciones en el formulario
+        model.addAttribute("usuarioCompleto", u);
+
+        return "admin/usuarios/usuario-form";
     }
 
     @PostMapping("/admin/guardar")
     @PreAuthorize("hasRole('ADMIN')")
     public String guardarUsuarioAdmin(@Valid @ModelAttribute("nuevoUsuario") RegistroDTO registroDTO,
                                       BindingResult result,
-                                      @RequestParam Long idRol,
+                                      @RequestParam(required = false) Long idRol,
                                       RedirectAttributes flash,
                                       Model model) {
 
         if (result.hasErrors()) {
             model.addAttribute("roles", rolRepo.findAll());
-            return "admin/form-usuario";
+            model.addAttribute("idRolActual", idRol);
+            if (registroDTO.getId() != null) {
+                usuarioService.buscarPorId(registroDTO.getId())
+                        .ifPresent(u -> model.addAttribute("usuarioCompleto", u));
+            }
+            return "admin/usuarios/usuario-form";
+        }
+
+        // Forzamos que sea Long y priorizamos el parámetro del Request
+        Long rolFinal = (idRol != null) ? idRol : registroDTO.getIdRol();
+
+        if (rolFinal == null) {
+            model.addAttribute("error", "Debes asignar un rango (rol) para manifestar a este habitante.");
+            model.addAttribute("roles", rolRepo.findAll());
+            return "admin/usuarios/usuario-form";
         }
 
         try {
-            // Validación de rango de edad (Uso de Exception propia)
-            if (registroDTO.getFechaNacimiento() != null) {
-                long edad = ChronoUnit.YEARS.between(registroDTO.getFechaNacimiento(), LocalDate.now());
-                if (edad < 18 || edad > 105) {
-                    throw new MagicalBusinessException("La edad del habitante debe estar entre 18 y 105 años.");
-                }
+            if (registroDTO.getId() != null) {
+                // Sincroniza con: Usuario actualizarUsuarioDesdeAdmin(RegistroDTO dto, Long idRol)
+                this.usuarioService.actualizarUsuarioDesdeAdmin(registroDTO, rolFinal);
+                flash.addFlashAttribute("success", "La esencia del habitante ha sido actualizada con éxito.");
+            } else {
+                // Sincroniza con: Usuario crearUsuarioDesdeAdmin(Usuario u, Long idRol)
+                Usuario usuarioParaGuardar = usuarioMapper.toEntity(registroDTO, rolFinal);
+                this.usuarioService.crearUsuarioDesdeAdmin(usuarioParaGuardar, rolFinal);
+                flash.addFlashAttribute("success", "Habitante '" + registroDTO.getNombre() + "' manifestado con éxito.");
             }
 
-            Usuario usuarioParaGuardar = usuarioMapper.toUsuario(registroDTO);
-            usuarioService.crearUsuarioDesdeAdmin(usuarioParaGuardar, idRol);
-            flash.addFlashAttribute("success", "Usuario creado exitosamente en el registro real.");
             return "redirect:/usuarios/admin/gestion";
 
         } catch (MagicalBusinessException e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("roles", rolRepo.findAll());
-            model.addAttribute("nuevoUsuario", registroDTO); // Persistencia de datos
-            return "admin/form-usuario";
+            model.addAttribute("idRolActual", rolFinal);
+            if (registroDTO.getId() != null) {
+                usuarioService.buscarPorId(registroDTO.getId())
+                        .ifPresent(u -> model.addAttribute("usuarioCompleto", u));
+            }
+            return "admin/usuarios/usuario-form";
+        } catch (Exception e) {
+            model.addAttribute("error", "Error místico inesperado: " + e.getMessage());
+            model.addAttribute("roles", rolRepo.findAll());
+            model.addAttribute("idRolActual", rolFinal);
+            if (registroDTO.getId() != null) {
+                usuarioService.buscarPorId(registroDTO.getId())
+                        .ifPresent(u -> model.addAttribute("usuarioCompleto", u));
+            }
+            return "admin/usuarios/usuario-form";
         }
     }
 
@@ -117,6 +185,7 @@ public class UsuarioController {
     }
 
     // --- 4. PERFIL: Ver y Navegar ---
+    // --- 4. PERFIL: Ver y Navegar ---
     @GetMapping("/perfil/{id}")
     public String verPerfil(@PathVariable Long id, Authentication auth, Model model) {
         Usuario logueado = usuarioService.buscarPorEmail(auth.getName())
@@ -131,7 +200,12 @@ public class UsuarioController {
                 .orElseThrow(() -> new MagicalNotFoundException("El habitante solicitado no existe."));
 
         model.addAttribute("u", target);
-        return "perfil/detalle";
+
+        // --- AGREGA ESTA LÍNEA ---
+        // Esto es lo que el formulario th:object="${cliente}" está buscando
+        model.addAttribute("cliente", target.getCliente());
+
+        return "client/perfil/detalle";
     }
 
     @GetMapping("/perfil")
@@ -144,34 +218,39 @@ public class UsuarioController {
     // --- 5. EDICIÓN: Acceso y Datos Personales ---
     @PostMapping("/editar-acceso/{id}")
     public String editarAcceso(@PathVariable Long id, @RequestParam String email,
-                               @RequestParam String password, Authentication auth, RedirectAttributes flash) {
+                               @RequestParam(required = false) String password, Authentication auth, RedirectAttributes flash) {
         if (!isAdmin(auth) && !isDuenio(auth, id)) return "redirect:/home";
 
         try {
             String emailActual = auth.getName();
             usuarioService.actualizarCredenciales(id, email, password);
 
-            if (!emailActual.equalsIgnoreCase(email) && !isAdmin(auth)) {
+            if (!isAdmin(auth) && !emailActual.equalsIgnoreCase(email)) {
                 return "redirect:/logout";
             }
-            return "redirect:/usuarios/perfil/" + id + "?exito=credenciales";
+            flash.addFlashAttribute("success", "Credenciales actualizadas.");
+            return "redirect:/usuarios/perfil/" + id;
         } catch (MagicalBusinessException e) {
             flash.addFlashAttribute("error", e.getMessage());
             return "redirect:/usuarios/perfil/" + id;
         }
+
     }
 
-    @PostMapping("/editar-datos/{id}")
-    public String editarDatos(@PathVariable Long id, @ModelAttribute Cliente cliente,
-                              Authentication auth, RedirectAttributes flash) {
-        if (!isAdmin(auth) && !isDuenio(auth, id)) return "redirect:/home";
 
-        try {
-            usuarioService.actualizarDatosPersonales(id, cliente);
-            flash.addFlashAttribute("success", "Datos personales actualizados.");
-        } catch (MagicalBusinessException e) {
-            flash.addFlashAttribute("error", e.getMessage());
-        }
+    @PostMapping("/editar-datos/{id}")
+    public String guardarCambios(@PathVariable Long id,
+                                 @ModelAttribute("cliente") Cliente clienteForm,
+                                 Authentication auth,
+                                 RedirectAttributes redirect) {
+
+        // Verificamos si es ADMIN para pasarle esa potestad al servicio
+        boolean esAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        usuarioService.actualizarDatosPersonales(id, clienteForm, esAdmin);
+
+        redirect.addFlashAttribute("success", "¡Esencia sincronizada con éxito!");
         return "redirect:/usuarios/perfil/" + id;
     }
 
@@ -180,11 +259,26 @@ public class UsuarioController {
     public String agregarDir(@PathVariable Long usuarioId, @ModelAttribute DireccionCliente dir, Authentication auth, RedirectAttributes flash) {
         if (!isAdmin(auth) && !isDuenio(auth, usuarioId)) return "redirect:/home";
         try {
+            if (dir.getPais() == null || dir.getPais().isBlank()) dir.setPais("Chile");
             usuarioService.agregarDireccion(usuarioId, dir);
+            flash.addFlashAttribute("success", "Dirección agregada.");
         } catch (MagicalBusinessException e) {
             flash.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/usuarios/perfil/" + usuarioId;
+        return redirectDirecciones(usuarioId, auth);
+    }
+
+    @PostMapping("/direcciones/agregarAdmin/{usuarioId}")
+    public String agregarDirAdmin(@PathVariable Long usuarioId, @ModelAttribute DireccionCliente dir, Authentication auth, RedirectAttributes flash) {
+        if (!isAdmin(auth) && !isDuenio(auth, usuarioId)) return "redirect:/home";
+        try {
+            if (dir.getPais() == null || dir.getPais().isBlank()) dir.setPais("Chile");
+            usuarioService.agregarDireccion(usuarioId, dir);
+            flash.addFlashAttribute("success", "Dirección agregada.");
+        } catch (MagicalBusinessException e) {
+            flash.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectDireccionesAdmin(usuarioId, auth);
     }
 
     @PostMapping("/direcciones/editar/{usuarioId}/{dirId}")
@@ -192,11 +286,51 @@ public class UsuarioController {
                             @ModelAttribute DireccionCliente nuevos, Authentication auth, RedirectAttributes flash) {
         if (!isAdmin(auth) && !isDuenio(auth, usuarioId)) return "redirect:/home";
         try {
+            if (nuevos.getPais() == null || nuevos.getPais().isBlank()) nuevos.setPais("Chile");
             usuarioService.editarDireccion(dirId, nuevos);
+            flash.addFlashAttribute("success", "Dirección actualizada.");
         } catch (MagicalBusinessException e) {
             flash.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/usuarios/perfil/" + usuarioId;
+        return redirectDirecciones(usuarioId, auth);
+    }
+
+    @PostMapping("/direcciones/editarAdmin/{usuarioId}/{dirId}")
+    public String editarDirAdmin(@PathVariable Long usuarioId, @PathVariable Long dirId,
+                            @ModelAttribute DireccionCliente nuevos, Authentication auth, RedirectAttributes flash) {
+        if (!isAdmin(auth) && !isDuenio(auth, usuarioId)) return "redirect:/home";
+        try {
+            if (nuevos.getPais() == null || nuevos.getPais().isBlank()) nuevos.setPais("Chile");
+            usuarioService.editarDireccion(dirId, nuevos);
+            flash.addFlashAttribute("success", "Dirección actualizada.");
+        } catch (MagicalBusinessException e) {
+            flash.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectDireccionesAdmin(usuarioId, auth);
+    }
+
+    @PostMapping("/direcciones/principal/{usuarioId}/{dirId}")
+    public String establecerPrincipal(@PathVariable Long usuarioId, @PathVariable Long dirId, Authentication auth, RedirectAttributes flash) {
+        if (!isAdmin(auth) && !isDuenio(auth, usuarioId)) return "redirect:/home";
+        try {
+            usuarioService.establecerDireccionPrincipal(usuarioId, dirId);
+            flash.addFlashAttribute("success", "Dirección principal actualizada.");
+        } catch (MagicalBusinessException e) {
+            flash.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectDirecciones(usuarioId, auth);
+    }
+
+    @PostMapping("/direcciones/principalAdmin/{usuarioId}/{dirId}")
+    public String establecerPrincipalAdmin(@PathVariable Long usuarioId, @PathVariable Long dirId, Authentication auth, RedirectAttributes flash) {
+        if (!isAdmin(auth) && !isDuenio(auth, usuarioId)) return "redirect:/home";
+        try {
+            usuarioService.establecerDireccionPrincipal(usuarioId, dirId);
+            flash.addFlashAttribute("success", "Dirección principal actualizada.");
+        } catch (MagicalBusinessException e) {
+            flash.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectDireccionesAdmin(usuarioId, auth);
     }
 
     @PostMapping("/direcciones/eliminar/{usuarioId}/{dirId}")
@@ -204,10 +338,36 @@ public class UsuarioController {
         if (!isAdmin(auth) && !isDuenio(auth, usuarioId)) return "redirect:/home";
         try {
             usuarioService.eliminarDireccion(usuarioId, dirId);
+            flash.addFlashAttribute("success", "Dirección eliminada.");
         } catch (MagicalBusinessException e) {
             flash.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/usuarios/perfil/" + usuarioId;
+        return redirectDirecciones(usuarioId, auth);
+    }
+
+    @PostMapping("/direcciones/eliminarAdmin/{usuarioId}/{dirId}")
+    public String eliminarDirAdmin(@PathVariable Long usuarioId, @PathVariable Long dirId, Authentication auth, RedirectAttributes flash) {
+        if (!isAdmin(auth) && !isDuenio(auth, usuarioId)) return "redirect:/home";
+        try {
+            usuarioService.eliminarDireccion(usuarioId, dirId);
+            flash.addFlashAttribute("success", "Dirección eliminada.");
+        } catch (MagicalBusinessException e) {
+            flash.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectDireccionesAdmin(usuarioId, auth);
+    }
+
+    // Redirige al admin al formulario de edición, al cliente a su perfil
+    private String redirectDirecciones(Long usuarioId, Authentication auth) {
+        return "redirect:/usuarios/perfil/"  + usuarioId;
+    }
+
+    // Redirige al admin al formulario de edición, al cliente a su perfil
+    private String redirectDireccionesAdmin(Long usuarioId, Authentication auth) {
+        if (isAdmin(auth)) {
+            return "redirect:/usuarios/admin/gestion";
+        }
+        return "redirect:/usuarios/perfil/"  + usuarioId;
     }
 
     // --- 7. ELIMINAR USUARIO ---
@@ -215,6 +375,10 @@ public class UsuarioController {
     @PreAuthorize("hasRole('ADMIN')")
     public String eliminar(@PathVariable Long id, Authentication auth, RedirectAttributes flash) {
         try {
+            Usuario logueado = usuarioService.buscarPorEmail(auth.getName()).get();
+            if (logueado.getId().equals(id)) {
+                throw new MagicalBusinessException("No puedes desvanecer tu propia esencia.");
+            }
             usuarioService.eliminarUsuario(id);
             flash.addFlashAttribute("success", "Usuario eliminado correctamente.");
         } catch (MagicalBusinessException e) {
@@ -223,7 +387,24 @@ public class UsuarioController {
         return "redirect:/usuarios/admin/gestion";
     }
 
-    // MÉTODOS DE APOYO
+    @GetMapping("/admin/verificar-rut/{rut}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseBody
+    public Optional<Usuario> verificarExistenciaRut(@PathVariable String rut) {
+        return usuarioService.buscarPorRut(rut);
+    }
+
+    @PostMapping("/invitado/actualizar-datos")
+    public String actualizarDatosInvitado(@ModelAttribute Cliente datosInvitado, RedirectAttributes flash) {
+        try {
+            usuarioService.actualizarOCrearClienteInvitado(datosInvitado);
+            flash.addFlashAttribute("success", "Tus datos de contacto han sido actualizados.");
+        } catch (Exception e) {
+            flash.addFlashAttribute("error", "Hubo un problema al sintonizar tus datos.");
+        }
+        return "redirect:/home";
+    }
+
     private boolean isAdmin(Authentication auth) {
         return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }

@@ -2,13 +2,26 @@
    1. NAVEGACIÓN Y CARRITO (ESTADO GLOBAL)
    ========================================= */
 document.addEventListener("DOMContentLoaded", () => {
-    // Báculo para subir (Scroll top)
-    const btnSubir = document.getElementById("btnSubir");
-    if (btnSubir) {
-        window.addEventListener('scroll', () => {
-            btnSubir.style.display = (window.scrollY > 300) ? "block" : "none";
-        });
-    }
+   const btnSubir = document.getElementById("btnSubir");
+       if (btnSubir) {
+           window.addEventListener('scroll', () => {
+               // Usamos una detección de scroll más sensible
+               const y = window.scrollY || document.documentElement.scrollTop;
+
+               if (y > 100) {
+                   btnSubir.style.setProperty("display", "flex", "important");
+                   btnSubir.style.opacity = "1";
+               } else {
+                   btnSubir.style.setProperty("display", "none", "important");
+                   btnSubir.style.opacity = "0";
+               }
+           });
+
+           // Click suave para subir
+           btnSubir.addEventListener('click', (e) => {
+               window.scrollTo({ top: 0, behavior: 'smooth' });
+           });
+       }
 
     // Persistencia del carrito
     const numerito = document.getElementById('numerito');

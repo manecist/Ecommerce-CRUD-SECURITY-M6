@@ -11,11 +11,44 @@ body {
 
 
 .btn-subir-fijo {
-    position: fixed; bottom: 20px; right: 20px;
-    z-index: 9999; transition: transform 0.3s ease;
+    position: fixed !important;
+    bottom: 25px !important;
+    right: 25px !important;
+    z-index: 99999 !important;
+
+    /* En lugar de display: none, usamos esto para que la transición funcione */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: pointer;
 }
 
-.btn-subir-fijo:hover { transform: scale(1.1) rotate(10deg); }
+/* Esta clase la activaremos con JavaScript */
+.btn-subir-visible {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: translateY(0) scale(1);
+}
+
+/* Estado inicial para que "salte" al aparecer */
+.btn-subir-fijo:not(.btn-subir-visible) {
+    transform: translateY(20px) scale(0.5);
+}
+
+/* 3. El Brillo de Sailor Moon (Filtro) */
+.btn-subir-fijo img {
+    filter: drop-shadow(0 0 8px rgba(162, 82, 238, 0.5));
+    display: block;
+}
+
+/* 4. Efecto de Interacción (Hover) */
+.btn-subir-fijo:hover {
+    transform: scale(1.15) rotate(15deg); /* Crece y gira */
+    filter: drop-shadow(0 0 15px rgba(244, 128, 255, 0.9)); /* Brillo intenso */
+}
 
 #tipBelleza h4, #tipSombra h4, #tipSkingCare h4 {
     color: #6907ab; text-transform: uppercase; letter-spacing: 1px;
