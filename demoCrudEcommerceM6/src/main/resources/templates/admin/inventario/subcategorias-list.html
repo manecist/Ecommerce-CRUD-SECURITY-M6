@@ -136,12 +136,6 @@
 
 <div th:replace="~{public/layout/footer :: footer}"></div>
 
-<script>
-    function prepararBorradoSub(id, nombre) {
-        document.getElementById('nombreSubBorrar').innerText = nombre;
-        document.getElementById('formEliminarSub').action = '/admin/subcategorias/eliminar/' + id;
-    }
-</script>
 
 </body>
 </html>

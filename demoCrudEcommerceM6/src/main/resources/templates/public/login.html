@@ -108,43 +108,6 @@
 
 <div th:replace="~{public/layout/footer :: footer}"></div>
 
-<script th:inline="javascript">
-    // --- 1. Mostrar/Ocultar contraseña ---
-    document.getElementById('btnToggle').addEventListener('click', function () {
-        const passInput = document.getElementById('pass');
-        const eyeIcon = document.getElementById('eyeIcon');
-        if (passInput.type === 'password') {
-            passInput.type = 'text';
-            eyeIcon.classList.replace('bi-eye', 'bi-eye-slash');
-        } else {
-            passInput.type = 'password';
-            eyeIcon.classList.replace('bi-eye-slash', 'bi-eye');
-        }
-    });
-
-    // --- 2. Función para cerrar el modal manualmente ---
-    function cerrarModalError() {
-        const modal = document.getElementById('errorLoginModal');
-        modal.style.display = 'none';
-        const backdrop = document.querySelector('.modal-backdrop');
-        if (backdrop) backdrop.remove();
-    }
-
-    // --- 3. Validación de Bootstrap para el formulario ---
-    (function () {
-        'use strict'
-        var forms = document.querySelectorAll('.needs-validation')
-        Array.prototype.slice.call(forms).forEach(function (form) {
-            form.addEventListener('submit', function (event) {
-                if (!form.checkValidity()) {
-                    event.preventDefault()
-                    event.stopPropagation()
-                }
-                form.classList.add('was-validated')
-            }, false)
-        })
-    })()
-</script>
 
 </body>
 </html>
